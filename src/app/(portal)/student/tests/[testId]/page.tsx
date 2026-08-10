@@ -103,7 +103,7 @@ export default async function TakeTestPage({ params }: { params: Promise<{ testI
   }
 
   // Fetch stripped questions
-  let questions = dataStore.questions
+  let questions = (connected ? [] : dataStore.questions)
     .filter((q) => q.test_id === testId)
     .sort((a, b) => a.order_index - b.order_index)
     .map((q) => ({
@@ -117,27 +117,19 @@ export default async function TakeTestPage({ params }: { params: Promise<{ testI
 
   let initialAnswers: { question_id: string; response: string | null }[] = [];
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      const { data: dbQuestions } = await supabase.rpc('get_student_questions', {
-        target_test_id: testId
-      } as any);
+  if (connected) {
+    const { data: dbQuestions, error: questionError } = await supabase.rpc('get_student_questions', {
+      target_test_id: testId
+    } as any);
+    if (questionError) throw new Error('Examination questions could not be loaded.');
+    questions = (dbQuestions ?? []) as any;
 
-      if (dbQuestions && dbQuestions.length > 0) {
-        questions = dbQuestions as any;
-      }
-
-      const { data: existingAnswers } = await supabase
-        .from('answers')
-        .select('question_id, response')
-        .eq('attempt_id', res.attemptId);
-
-      if (existingAnswers) {
-        initialAnswers = existingAnswers;
-      }
-    } catch {
-      // Fallback
-    }
+    const { data: existingAnswers, error: answerError } = await supabase
+      .from('answers')
+      .select('question_id, response')
+      .eq('attempt_id', res.attemptId);
+    if (answerError) throw new Error('Saved responses could not be loaded.');
+    initialAnswers = existingAnswers ?? [];
   } else {
     const existingAnswers = dataStore.answers.filter((a) => a.attempt_id === res.attemptId);
     initialAnswers = existingAnswers.map((a) => ({
@@ -152,4 +144,8 @@ export default async function TakeTestPage({ params }: { params: Promise<{ testI
       testTitle={test.title}
       attemptId={res.attemptId}
       expiresAt={res.expiresAt}
-      questions={questi
+      questions={questions}
+      initialAnswers={initialAnswers}
+    />
+  );
+}

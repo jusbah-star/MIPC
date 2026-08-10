@@ -35,7 +35,7 @@ test('active accounts and course materials are protected by database policies', 
   assert.match(rbacMigration, /create table course_materials/);
   assert.match(rbacMigration, /alter table course_materials enable row level security/);
   assert.match(rbacMigration, /students read published course materials/);
-  assert.match(rbacMigration, /lecturers manage their course materials/);
+  assert.match(rbacMigration, /lecturers manage course materials/);
   assert.match(rbacMigration, /account_status = 'active'/);
 });
 
@@ -50,18 +50,18 @@ test('privileged RBAC workflows are atomic and narrowly granted', () => {
 test('exam and course access paths have supporting indexes', () => {
   assert.match(rbacMigration, /create index if not exists idx_tests_course_published_window/);
   assert.match(rbacMigration, /create index if not exists idx_attempts_test_student_status/);
-  assert.match(rbacMigration, /create index if not exists idx_course_materials_course_published/);
+  assert.match(rbacMigration, /create index if not exists idx_materials_course_published_created/);
 });
 
 test('assessment endpoints enforce request-rate boundaries', async () => {
   const endpoints = [
-    'src/app/api/attempts/route.ts',
-    'src/app/api/attempts/[attemptId]/answers/route.ts',
-    'src/app/api/attempts/[attemptId]/submit/route.ts'
+    'src/app/api/tests/[testId]/attempt/route.ts',
+    'src/app/api/tests/[testId]/answers/route.ts',
+    'src/app/api/tests/[testId]/submit/route.ts'
   ];
   for (const endpoint of endpoints) {
     const source = await readFile(join(root, endpoint), 'utf8');
-    assert.match(source, /rateLimit\(/, endpoint);
+    assert.match(source, /(?:rateLimit|enforceRateLimit)\(/, endpoint);
     assert.match(source, /status: 429/, endpoint);
   }
 });
