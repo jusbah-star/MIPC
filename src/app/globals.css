@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root { color-scheme: light; }
+  html { scroll-behavior: smooth; }
+  body { min-width: 0; overflow-x: hidden; background: radial-gradient(circle at 8% -5%, rgba(229, 190, 86, 0.16), transparent 24rem), #fcfbf7; }
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  /* Visible keyboard focus everywhere, not just where it's convenient. */
+  :focus-visible {
+    outline: 3px solid theme('colors.brass.500');
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .grid { min-width: 0; grid-auto-columns: minmax(0, 1fr); }
+  .grid > * { min-width: 0; }
+  .mipc-eyebrow { @apply font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-mipc-green-700; }
+  .mipc-card { @apply rounded-2xl border border-ink-900/10 bg-white shadow-academic; }
+  .mipc-panel { @apply rounded-2xl border border-ink-900/10 bg-white p-5 shadow-academic sm:p-6; }
+  .mipc-page-title { @apply mt-2 font-display text-3xl font-bold tracking-tight text-ink-950 sm:text-4xl; }
+  .mipc-button-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-mipc-green-800 px-5 py-2.5 text-sm font-semibold text-white shadow-academic transition hover:bg-mipc-green-900; }
+  .mipc-button-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-ink-900/15 bg-white px-5 py-2.5 text-sm font-semibold text-ink-900 transition hover:bg-parchment-100; }
+  .mipc-field { @apply min-h-11 w-full rounded-xl border border-ink-900/15 bg-white px-3.5 py-2.5 text-sm text-ink-950 shadow-sm placeholder:text-ink-500; }
+  .mipc-input { @apply min-h-11 w-full rounded-xl border border-ink-900/15 bg-white px-3.5 py-2.5 text-sm text-ink-950 shadow-sm placeholder:text-ink-500; }
+  .mipc-label { @apply mb-1.5 block text-sm font-semibold text-ink-900; }
+  .mipc-status { @apply inline-flex items-center rounded-full bg-mipc-green-100 px-2.5 py-1 text-xs font-semibold text-mipc-green-800; }
+  .mipc-empty { @apply rounded-2xl border border-dashed border-ink-900/15 bg-white/70 p-10 text-center text-sm text-ink-600; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
