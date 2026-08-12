@@ -1,5 +1,6 @@
+import Image from 'next/image';
 import Link from 'next/link';
-import { AcademicCapIcon, ChevronRightIcon } from '@/components/icons';
+import { ChevronRightIcon } from '@/components/icons';
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,7 +14,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <header className="sticky top-0 z-30 border-b border-ink-900/10 bg-white/95 backdrop-blur-xl">
         <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-3 sm:px-8">
           <Link href="/" className="flex min-h-11 min-w-0 items-center gap-3 rounded-lg">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-mipc-green-800 text-brass-300 shadow-academic" aria-hidden="true"><AcademicCapIcon className="h-6 w-6" /></span>
+            <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-academic ring-1 ring-ink-900/10">
+              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="48px" className="object-cover" priority />
+            </span>
             <span className="min-w-0"><span className="block font-display text-lg font-bold leading-none">MIPC</span><span className="mt-1 hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-mipc-green-700 sm:block">Muhabura Integrated Polytechnic College</span><span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-mipc-green-700 sm:hidden">Musanze, Rwanda</span></span>
           </Link>
           <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-2 text-sm font-semibold text-ink-800">
