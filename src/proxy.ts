@@ -24,6 +24,9 @@ function backendUnavailable() {
 export async function proxy(request: NextRequest) {
   const { response, supabase, user, demoEnabled } = await updateSession(request);
   const path = request.nextUrl.pathname;
+
+  if (path === '/login' && !supabase && !demoEnabled) return backendUnavailable();
+
   const portalSegment = path.split('/')[1];
   if (!(portalSegment in PORTAL_ROLES)) return response;
 
