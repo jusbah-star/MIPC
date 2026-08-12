@@ -2,13 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  ClockIcon,
-  CheckCircleIcon,
-  AlertCircleIcon,
-  ChevronRightIcon,
-  FileTextIcon
-} from '@/components/icons';
+import { AlertCircleIcon, CheckCircleIcon, ChevronRightIcon, ClockIcon } from '@/components/icons';
 
 type Question = {
   id: string;
@@ -28,18 +22,10 @@ type Props = {
   initialAnswers: { question_id: string; response: string | null }[];
 };
 
-export default function TestRunner({
-  testId,
-  testTitle,
-  attemptId,
-  expiresAt,
-  questions,
-  initialAnswers
-}: Props) {
+export default function TestRunner({ testId, testTitle, expiresAt, questions, initialAnswers }: Props) {
   const router = useRouter();
-
   const [answers, setAnswers] = useState<Record<string, string>>(() =>
-    Object.fromEntries(initialAnswers.map((a) => [a.question_id, a.response ?? '']))
+    Object.fromEntries(initialAnswers.map((answer) => [answer.question_id, answer.response ?? '']))
   );
   const [activeIdx, setActiveIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -50,49 +36,11 @@ export default function TestRunner({
   const deadline = useMemo(() => new Date(expiresAt).getTime(), [expiresAt]);
   const [remainingMs, setRemainingMs] = useState(() => Math.max(0, deadline - Date.now()));
 
-  // Synchronized countdown timer
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, deadline - Date.now());
-      setRemainingMs(remaining);
-      if (remaining <= 0 && !submittedRef.current) {
-        clearInterval(interval);
-        handleSubmit();
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadline]);
-
-  // Autosave answers every 10s
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      setSaveStatus('saving');
-      const entries = Object.entries(answers);
-      if (entries.length > 0) {
-        try {
-          const response = await fetch(`/api/tests/${testId}/answers`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              answers: entries.map(([questionId, response]) => ({ questionId, response }))
-            })
-          });
-          if (!response.ok) throw new Error('Save failed');
-        } catch {
-          setSubmitError('Autosave is temporarily unavailable. Keep this page open and try again.');
-        }
-      }
-      setSaveStatus('saved');
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [answers, attemptId]);
-
   async function handleSubmit() {
     if (submittedRef.current) return;
     submittedRef.current = true;
     setSubmitting(true);
+    setSubmitError('');
 
     try {
       const response = await fetch(`/api/tests/${testId}/submit`, {
@@ -113,213 +61,204 @@ export default function TestRunner({
     }
   }
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const remaining = Math.max(0, deadline - Date.now());
+      setRemainingMs(remaining);
+      if (remaining <= 0 && !submittedRef.current) {
+        window.clearInterval(interval);
+        void handleSubmit();
+      }
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+    // handleSubmit intentionally uses the latest render state when the timer expires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline]);
+
+  useEffect(() => {
+    const interval = window.setInterval(async () => {
+      const entries = Object.entries(answers);
+      if (!entries.length) return;
+
+      setSaveStatus('saving');
+      try {
+        const response = await fetch(`/api/tests/${testId}/answers`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            answers: entries.map(([questionId, response]) => ({ questionId, response }))
+          })
+        });
+        if (!response.ok) throw new Error('Save failed');
+        setSubmitError('');
+      } catch {
+        setSubmitError('Autosave is temporarily unavailable. Keep this page open and try again.');
+      } finally {
+        setSaveStatus('saved');
+      }
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [answers, testId]);
+
   const minutes = Math.max(0, Math.floor(remainingMs / 60_000));
   const seconds = Math.max(0, Math.floor((remainingMs % 60_000) / 1000));
-  const isUrgent = remainingMs < 120_000; // < 2 mins
-  const answeredCount = Object.values(answers).filter((v) => v && v.trim().length > 0).length;
-  const currentQ = questions[activeIdx];
+  const isUrgent = remainingMs < 120_000;
+  const answeredCount = Object.values(answers).filter((value) => value && value.trim().length > 0).length;
+  const currentQuestion = questions[activeIdx];
+  const progress = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Sticky Exam Control Bar */}
-      {submitError && (
-        <div role="alert" className="rounded-xl border border-signal-danger/30 bg-signal-danger-bg px-4 py-3 text-sm text-signal-danger">
-          {submitError}
+    <div className="mx-auto max-w-6xl space-y-5">
+      {submitError ? (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-signal-danger/15 bg-signal-danger-bg px-4 py-3.5 text-sm leading-6 text-signal-danger">
+          <AlertCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+          <span>{submitError}</span>
         </div>
-      )}
-      <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md border border-ink-900/10 rounded-2xl p-4 sm:p-5 shadow-academic flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-ink-900 text-brass-400 flex items-center justify-center font-bold">
-            <ClockIcon className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="font-display text-lg font-bold text-ink-950 leading-tight">
-              {testTitle}
-            </h1>
-            <div className="flex items-center gap-3 text-xs text-ink-600 font-mono mt-0.5">
-              <span>{answeredCount} of {questions.length} answered</span>
-              <span>·</span>
-              <span className="text-signal-ok font-medium flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-signal-ok" />
-                {saveStatus === 'saving' ? 'Syncing…' : 'Autosaved'}
-              </span>
+      ) : null}
+
+      <header className="sticky top-[84px] z-20 overflow-hidden rounded-2xl border border-ink-900/[0.09] bg-white/95 shadow-academic-lg backdrop-blur-xl lg:top-[88px]">
+        <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${isUrgent ? 'bg-signal-danger-bg text-signal-danger' : 'bg-mipc-green-50 text-mipc-green-700'}`}>
+              <ClockIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-ink-950 sm:text-base">{testTitle}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
+                <span>{answeredCount} of {questions.length} answered</span>
+                <span className="inline-flex items-center gap-1.5 text-mipc-green-700"><span className="h-1.5 w-1.5 rounded-full bg-mipc-green-500" /> {saveStatus === 'saving' ? 'Saving…' : 'Autosaved'}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Live Synchronized Timer */}
-        <div className="flex items-center gap-4">
-          <div
-            className={`px-4 py-2 rounded-xl font-mono text-xl font-bold tracking-wider tabular-nums flex items-center gap-2 border ${
-              isUrgent
-                ? 'bg-signal-danger-bg text-signal-danger border-signal-danger/30 animate-pulse'
-                : 'bg-parchment-100 text-ink-950 border-parchment-300'
-            }`}
-          >
-            <ClockIcon className="w-4 h-4" />
-            <span>
-              {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
-            </span>
+          <div className="flex items-center justify-between gap-3 lg:justify-end">
+            <div className={`rounded-xl border px-3.5 py-2 text-center ${isUrgent ? 'border-signal-danger/20 bg-signal-danger-bg text-signal-danger' : 'border-ink-900/[0.08] bg-parchment-100 text-ink-950'}`}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] opacity-65">Time left</p>
+              <p className="mt-0.5 font-display text-xl font-extrabold tabular-nums tracking-tight">{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}</p>
+            </div>
+            <button type="button" onClick={handleSubmit} disabled={submitting} className="mipc-button-primary min-h-12 px-4 sm:px-5">
+              {submitting ? 'Submitting…' : 'Submit exam'}
+            </button>
           </div>
-
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="rounded-xl bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-ink-800 transition-colors shadow-sm disabled:opacity-60 flex items-center gap-2"
-          >
-            {submitting ? 'Recording Final Grade…' : 'Final Submit'}
-          </button>
         </div>
-      </div>
+        <div className="h-1 bg-parchment-200">
+          <div className="h-full bg-mipc-green-600 transition-[width] duration-300" style={{ width: `${progress}%` }} />
+        </div>
+      </header>
 
-      {/* Main Examination Layout: Navigator & Question Canvas */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left: Question Navigation Index */}
-        <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs">
-            <h3 className="font-mono text-xs uppercase tracking-wider font-bold text-ink-700 mb-3">
-              Questions Matrix
-            </h3>
-            <div className="grid grid-cols-5 gap-2">
-              {questions.map((q, idx) => {
-                const isAnswered = Boolean(answers[q.id] && answers[q.id].trim().length > 0);
-                const isCurrent = activeIdx === idx;
+      <div className="grid gap-5 lg:grid-cols-[230px_minmax(0,1fr)]">
+        <aside className="lg:sticky lg:top-[190px] lg:self-start">
+          <div className="rounded-2xl border border-ink-900/[0.08] bg-white p-4 shadow-xs">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-ink-900">Questions</p>
+              <span className="text-xs text-ink-400">{progress}% complete</span>
+            </div>
+            <div className="mt-4 grid grid-cols-5 gap-2 lg:grid-cols-4">
+              {questions.map((question, index) => {
+                const isAnswered = Boolean(answers[question.id]?.trim());
+                const isCurrent = activeIdx === index;
 
                 return (
                   <button
-                    key={q.id}
-                    onClick={() => setActiveIdx(idx)}
-                    className={`h-9 rounded-lg font-mono text-xs font-bold transition-all ${
+                    key={question.id}
+                    type="button"
+                    onClick={() => setActiveIdx(index)}
+                    aria-label={`Go to question ${index + 1}${isAnswered ? ', answered' : ''}`}
+                    aria-current={isCurrent ? 'step' : undefined}
+                    className={`grid h-10 place-items-center rounded-xl text-xs font-semibold transition ${
                       isCurrent
-                        ? 'bg-ink-900 text-white ring-2 ring-brass-500 ring-offset-2'
+                        ? 'bg-mipc-green-900 text-white shadow-xs'
                         : isAnswered
-                        ? 'bg-signal-ok-bg text-signal-ok border border-signal-ok/30'
-                        : 'bg-parchment-100 text-ink-700 hover:bg-parchment-200'
+                          ? 'border border-mipc-green-700/10 bg-mipc-green-50 text-mipc-green-700'
+                          : 'bg-parchment-100 text-ink-500 hover:bg-parchment-200 hover:text-ink-800'
                     }`}
                   >
-                    {idx + 1}
+                    {index + 1}
                   </button>
                 );
               })}
             </div>
-
-            <div className="mt-4 pt-4 border-t border-parchment-200 space-y-2 text-[11px] font-mono text-ink-600">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded bg-signal-ok-bg border border-signal-ok/30" />
-                <span>Answered</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded bg-parchment-100" />
-                <span>Unanswered</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded bg-ink-900" />
-                <span>Active</span>
-              </div>
+            <div className="mt-5 border-t border-ink-900/[0.07] pt-4 text-xs leading-5 text-ink-500">
+              <p>Your responses save automatically every 10 seconds.</p>
             </div>
           </div>
-        </div>
+        </aside>
 
-        {/* Right: Question Body */}
-        {currentQ && (
-          <div className="lg:col-span-3 space-y-6">
-            <div className="bg-white rounded-2xl border border-ink-900/10 p-6 sm:p-8 shadow-academic">
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-parchment-200">
-                <span className="text-xs font-mono uppercase tracking-wider text-brass-700 font-bold bg-brass-400/15 px-2.5 py-1 rounded">
-                  Question {activeIdx + 1} of {questions.length} · {currentQ.points} Point{currentQ.points === 1 ? '' : 's'}
-                </span>
-                <span className="text-xs font-mono text-ink-500 uppercase">
-                  Format: {currentQ.type.replace('_', ' ')}
-                </span>
+        {currentQuestion ? (
+          <section className="rounded-3xl border border-ink-900/[0.08] bg-white p-5 shadow-academic sm:p-7 lg:p-8" aria-labelledby="current-question">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-900/[0.07] pb-5">
+              <div>
+                <p className="text-xs font-semibold text-mipc-green-700">Question {activeIdx + 1} of {questions.length}</p>
+                <p className="mt-1 text-xs text-ink-400">{currentQuestion.points} point{currentQuestion.points === 1 ? '' : 's'} · {currentQuestion.type.replace('_', ' ')}</p>
               </div>
+              {answers[currentQuestion.id]?.trim() ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-signal-ok-bg px-2.5 py-1 text-[11px] font-semibold text-signal-ok"><CheckCircleIcon className="h-3.5 w-3.5" /> Answered</span>
+              ) : null}
+            </div>
 
-              <h2 className="font-display text-xl font-bold text-ink-950 mb-6 leading-relaxed">
-                {currentQ.prompt}
-              </h2>
+            <h1 id="current-question" className="mt-6 max-w-3xl text-xl font-bold leading-8 tracking-[-0.02em] text-ink-950 sm:text-2xl sm:leading-9">{currentQuestion.prompt}</h1>
 
-              {/* MCQ Options */}
-              {currentQ.type === 'mcq' && currentQ.options && (
-                <div className="space-y-3">
-                  {currentQ.options.map((opt) => {
-                    const isSelected = answers[currentQ.id] === opt.id;
-                    return (
-                      <label
-                        key={opt.id}
-                        onClick={() => setAnswers((prev) => ({ ...prev, [currentQ.id]: opt.id }))}
-                        className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-parchment-100/80 border-brass-500 shadow-xs'
-                            : 'bg-white border-parchment-300 hover:bg-parchment-50'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={currentQ.id}
-                          checked={isSelected}
-                          onChange={() => {}}
-                          className="mt-1 text-brass-600 focus:ring-brass-500"
-                        />
-                        <span className="text-sm font-medium text-ink-900 leading-snug">
-                          {opt.label}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+            {currentQuestion.type === 'mcq' && currentQuestion.options ? (
+              <fieldset className="mt-7 space-y-3">
+                <legend className="sr-only">Choose one answer</legend>
+                {currentQuestion.options.map((option) => {
+                  const isSelected = answers[currentQuestion.id] === option.id;
+                  return (
+                    <label key={option.id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition sm:p-5 ${isSelected ? 'border-mipc-green-600/35 bg-mipc-green-50' : 'border-ink-900/[0.08] bg-white hover:border-ink-900/15 hover:bg-parchment-50'}`}>
+                      <input
+                        type="radio"
+                        name={currentQuestion.id}
+                        value={option.id}
+                        checked={isSelected}
+                        onChange={() => setAnswers((previous) => ({ ...previous, [currentQuestion.id]: option.id }))}
+                        className="mt-1 h-4 w-4 shrink-0 accent-mipc-green-700"
+                      />
+                      <span className="text-sm font-medium leading-6 text-ink-800">{option.label}</span>
+                    </label>
+                  );
+                })}
+              </fieldset>
+            ) : null}
 
-              {/* Short Answer / Essay Input */}
-              {(currentQ.type === 'short_answer' || currentQ.type === 'essay') && (
-                <div className="space-y-2">
-                  <textarea
-                    value={answers[currentQ.id] ?? ''}
-                    onChange={(e) => setAnswers((prev) => ({ ...prev, [currentQ.id]: e.target.value }))}
-                    rows={currentQ.type === 'essay' ? 8 : 3}
-                    placeholder="Type your scholarly response..."
-                    className="w-full rounded-xl border border-ink-900/15 p-4 text-sm text-ink-950 placeholder:text-ink-400 outline-none focus-visible:border-brass-500 bg-parchment-50/50 leading-relaxed font-sans"
-                  />
-                  <div className="flex justify-end text-xs font-mono text-ink-500">
-                    {(answers[currentQ.id] || '').length} characters
-                  </div>
-                </div>
-              )}
+            {currentQuestion.type === 'short_answer' || currentQuestion.type === 'essay' ? (
+              <div className="mt-7">
+                <label className="mipc-label" htmlFor={`answer-${currentQuestion.id}`}>Your answer</label>
+                <textarea
+                  id={`answer-${currentQuestion.id}`}
+                  value={answers[currentQuestion.id] ?? ''}
+                  onChange={(event) => setAnswers((previous) => ({ ...previous, [currentQuestion.id]: event.target.value }))}
+                  rows={currentQuestion.type === 'essay' ? 10 : 4}
+                  placeholder={currentQuestion.type === 'essay' ? 'Write your response clearly and support your answer where appropriate.' : 'Type your answer here.'}
+                  className="mipc-input min-h-32 leading-7"
+                />
+                <p className="mt-2 text-right text-xs text-ink-400">{(answers[currentQuestion.id] || '').length} characters</p>
+              </div>
+            ) : null}
 
-              {/* Previous / Next Question Controls */}
-              <div className="mt-8 pt-6 border-t border-parchment-200 flex items-center justify-between">
-                <button
-                  type="button"
-                  disabled={activeIdx === 0}
-                  onClick={() => setActiveIdx((prev) => Math.max(0, prev - 1))}
-                  className="rounded-lg border border-parchment-300 bg-white px-4 py-2 text-xs font-mono font-medium text-ink-800 hover:bg-parchment-100 disabled:opacity-40"
-                >
-                  &larr; Previous Question
+            <div className="mt-8 flex flex-col-reverse gap-3 border-t border-ink-900/[0.07] pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                disabled={activeIdx === 0}
+                onClick={() => setActiveIdx((previous) => Math.max(0, previous - 1))}
+                className="mipc-button-secondary disabled:pointer-events-none disabled:opacity-40"
+              >
+                ← Previous
+              </button>
+
+              {activeIdx < questions.length - 1 ? (
+                <button type="button" onClick={() => setActiveIdx((previous) => Math.min(questions.length - 1, previous + 1))} className="mipc-button-primary">
+                  Next question <ChevronRightIcon className="h-4 w-4" />
                 </button>
-
-                <div className="flex items-center gap-2">
-                  {activeIdx < questions.length - 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => setActiveIdx((prev) => Math.min(questions.length - 1, prev + 1))}
-                      className="rounded-lg bg-ink-900 px-5 py-2 text-xs font-medium text-white hover:bg-ink-800 flex items-center gap-1.5"
-                    >
-                      <span>Next Question</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-brass-400" />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={submitting}
-                      className="rounded-lg bg-brass-500 px-6 py-2 text-xs font-bold text-ink-950 hover:bg-brass-400 shadow-sm"
-                    >
-                      Finish & Submit
-                    </button>
-                  )}
-                </div>
-              </div>
+              ) : (
+                <button type="button" onClick={handleSubmit} disabled={submitting} className="mipc-button-primary">
+                  {submitting ? 'Submitting…' : 'Finish and submit'}
+                </button>
+              )}
             </div>
-          </div>
-        )}
+          </section>
+        ) : null}
       </div>
     </div>
   );
