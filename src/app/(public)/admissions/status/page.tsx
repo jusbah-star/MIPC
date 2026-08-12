@@ -2,13 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import {
-  AwardIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  AlertCircleIcon,
-  ChevronRightIcon
-} from '@/components/icons';
+import { AlertCircleIcon, CheckCircleIcon, ChevronRightIcon, ClockIcon } from '@/components/icons';
 
 export default function AdmissionsStatusPage() {
   const [query, setQuery] = useState('');
@@ -17,8 +11,8 @@ export default function AdmissionsStatusPage() {
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearch = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (!query.trim() || !email.trim()) return;
 
     setSearched(true);
@@ -37,132 +31,133 @@ export default function AdmissionsStatusPage() {
     setResult(payload.application ?? null);
   };
 
-  return (
-    <div className="py-12 sm:py-16">
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
-          <span className="text-xs font-mono uppercase tracking-widest text-mipc-green-700 font-bold block">
-            MIPC Admissions Registry Tracker
-          </span>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink-950">
-            Check Application Status
-          </h1>
-          <p className="text-sm text-ink-700">
-            Enter your candidate dossier reference code or registered email address to view your admissions status.
-          </p>
-        </div>
+  const statusConfig = result
+    ? result.status === 'approved'
+      ? { label: 'Admitted', detail: 'Your application has been approved.', tone: 'success' as const }
+      : result.status === 'rejected'
+        ? { label: 'Decision complete', detail: 'Your application was not approved.', tone: 'danger' as const }
+        : { label: 'Under review', detail: 'The admissions team is reviewing your application.', tone: 'pending' as const }
+    : null;
 
-        <div className="bg-white rounded-2xl border border-ink-900/10 p-6 sm:p-8 shadow-academic">
-          <form onSubmit={handleSearch} className="space-y-4">
+  return (
+    <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8 sm:py-16 lg:py-20">
+      <div className="grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:gap-16">
+        <aside>
+          <p className="mipc-eyebrow">Application tracking</p>
+          <h1 className="mt-4 max-w-lg font-display text-4xl font-extrabold leading-[1.05] tracking-[-0.045em] sm:text-5xl">Know where your application stands.</h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-ink-600">Use the private reference issued after submission together with the same email address you applied with.</p>
+
+          <div className="mt-8 rounded-2xl border border-ink-900/[0.08] bg-white p-5 shadow-xs">
+            <p className="text-sm font-semibold text-ink-950">What you&apos;ll need</p>
+            <div className="mt-4 space-y-3 text-sm text-ink-600">
+              <div className="flex gap-3"><span className="font-semibold text-mipc-green-700">01</span><span>Your complete private application reference</span></div>
+              <div className="flex gap-3"><span className="font-semibold text-mipc-green-700">02</span><span>The email address used on the application</span></div>
+            </div>
+          </div>
+
+          <p className="mt-5 text-xs leading-5 text-ink-400">For your privacy, MIPC requires both pieces of information before showing an admission record.</p>
+        </aside>
+
+        <section className="rounded-3xl border border-ink-900/[0.08] bg-white p-6 shadow-academic sm:p-8 lg:p-10">
+          <div className="border-b border-ink-900/[0.07] pb-6">
+            <p className="text-xs font-semibold text-mipc-green-700">Admissions tracker</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-[-0.025em] sm:text-3xl">Check your status</h2>
+            <p className="mt-2 text-sm text-ink-500">Enter the exact details from your submitted application.</p>
+          </div>
+
+          <form onSubmit={handleSearch} className="mt-7 space-y-5">
             <div>
-              <label className="block text-xs font-mono uppercase tracking-wider font-semibold text-ink-800 mb-1.5">
-                Complete application reference
-              </label>
+              <label htmlFor="reference" className="mipc-label">Application reference</label>
               <input
+                id="reference"
                 required
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Paste the complete private reference"
-                className="w-full rounded-xl border border-ink-900/15 p-3.5 text-sm text-ink-950 font-mono outline-none focus-visible:border-mipc-green-500 bg-parchment-50/50"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Paste your complete private reference"
+                className="mipc-input min-h-12"
               />
             </div>
             <div>
-              <label className="block text-xs font-mono uppercase tracking-wider font-semibold text-ink-800 mb-1.5">
-                Application email
-              </label>
+              <label htmlFor="applicationEmail" className="mipc-label">Application email</label>
               <input
+                id="applicationEmail"
                 required
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
                 autoComplete="email"
-                className="w-full rounded-xl border border-ink-900/15 p-3.5 text-sm text-ink-950 outline-none focus-visible:border-mipc-green-500 bg-parchment-50/50"
+                placeholder="name@example.com"
+                className="mipc-input min-h-12"
               />
             </div>
 
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-ink-900 py-3 text-sm font-semibold text-white hover:bg-ink-800 transition-colors shadow-sm"
-            >
-              Verify Dossier in Admissions Ledger
+            <button type="submit" className="mipc-button-primary min-h-12 w-full">
+              Check application status <ChevronRightIcon className="h-4 w-4" />
             </button>
           </form>
 
-          {error && <p role="alert" className="mt-6 rounded-xl bg-signal-danger-bg p-4 text-sm text-signal-danger">{error}</p>}
-          {searched && !error && (
-            <div className="mt-8 pt-6 border-t border-parchment-200">
-              {result ? (
-                <div className="space-y-4 bg-parchment-50 rounded-xl p-5 border border-parchment-300">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-mipc-green-800">
-                      Dossier #{result.id.slice(-6).toUpperCase()}
+          {error ? <p role="alert" className="mt-6 rounded-2xl bg-signal-danger-bg p-4 text-sm leading-6 text-signal-danger">{error}</p> : null}
+
+          {searched && !error ? (
+            <div className="mt-8 border-t border-ink-900/[0.07] pt-7">
+              {result && statusConfig ? (
+                <div className="overflow-hidden rounded-2xl border border-ink-900/[0.08] bg-parchment-50">
+                  <div className="flex flex-col gap-4 border-b border-ink-900/[0.07] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-ink-400">Application #{result.id.slice(-6).toUpperCase()}</p>
+                      <h3 className="mt-1 text-lg font-bold text-ink-950">{result.full_name}</h3>
+                    </div>
+                    <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      statusConfig.tone === 'success'
+                        ? 'bg-signal-ok-bg text-signal-ok'
+                        : statusConfig.tone === 'danger'
+                          ? 'bg-signal-danger-bg text-signal-danger'
+                          : 'bg-signal-warn-bg text-signal-warn'
+                    }`}>
+                      {statusConfig.tone === 'success' ? <CheckCircleIcon className="h-3.5 w-3.5" /> : statusConfig.tone === 'pending' ? <ClockIcon className="h-3.5 w-3.5" /> : null}
+                      {statusConfig.label}
                     </span>
-                    {result.status === 'approved' ? (
-                      <span className="text-[10px] font-mono text-signal-ok bg-signal-ok-bg px-2.5 py-1 rounded font-bold uppercase flex items-center gap-1">
-                        <CheckCircleIcon className="w-3 h-3" />
-                        <span>Admitted & Matriculated</span>
-                      </span>
-                    ) : result.status === 'rejected' ? (
-                      <span className="text-[10px] font-mono text-signal-danger bg-signal-danger-bg px-2.5 py-1 rounded font-bold uppercase">
-                        Decision Finalized (Declined)
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-mono text-signal-warn bg-signal-warn-bg px-2.5 py-1 rounded font-bold uppercase flex items-center gap-1">
-                        <ClockIcon className="w-3 h-3" />
-                        <span>Under Academic Review</span>
-                      </span>
-                    )}
                   </div>
 
-                  <div>
-                    <h3 className="font-display text-lg font-bold text-ink-950">
-                      {result.full_name}
-                    </h3>
-                  </div>
-
-                  <div className="text-xs font-mono text-ink-700 bg-white p-3.5 rounded-lg border border-parchment-200 space-y-1.5">
-                    <div className="flex justify-between">
-                      <span className="text-ink-500">Submitted:</span>
-                      <span>{new Date(result.submitted_at).toLocaleDateString('en-GB')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-ink-500">Institution:</span>
-                      <span className="font-medium text-ink-900">MIPC Musanze Campus</span>
-                    </div>
-                    {result.status === 'approved' && (
-                      <div className="pt-2 mt-2 border-t border-parchment-200 text-signal-ok font-semibold">
-                        Formal acceptance granted. Please report to the MIPC Registrar Office for matriculation credentials.
+                  <div className="p-5">
+                    <p className="text-sm leading-6 text-ink-600">{statusConfig.detail}</p>
+                    <dl className="mt-5 grid gap-4 rounded-xl bg-white p-4 text-sm sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs font-medium text-ink-400">Submitted</dt>
+                        <dd className="mt-1 font-semibold text-ink-900">{new Date(result.submitted_at).toLocaleDateString('en-RW', { day: 'numeric', month: 'long', year: 'numeric' })}</dd>
                       </div>
-                    )}
-                  </div>
+                      <div>
+                        <dt className="text-xs font-medium text-ink-400">Campus</dt>
+                        <dd className="mt-1 font-semibold text-ink-900">MIPC Musanze</dd>
+                      </div>
+                    </dl>
 
-                  {result.status === 'approved' && (
-                    <div className="pt-2">
-                      <Link
-                        href="/login"
-                        className="inline-flex items-center gap-2 text-xs font-semibold text-mipc-green-700 hover:text-mipc-green-800"
-                      >
-                        <span>Proceed to Student Portal SSO</span>
-                        <ChevronRightIcon className="w-3.5 h-3.5" />
+                    {result.status === 'approved' ? (
+                      <div className="mt-5 rounded-xl bg-signal-ok-bg p-4 text-sm leading-6 text-signal-ok">
+                        Formal acceptance has been granted. Follow the registrar&apos;s instructions to complete matriculation.
+                      </div>
+                    ) : null}
+
+                    {result.status === 'approved' ? (
+                      <Link href="/login" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mipc-green-700 hover:text-mipc-green-900">
+                        Continue to student portal <ChevronRightIcon className="h-4 w-4" />
                       </Link>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </div>
               ) : (
-                <div className="bg-signal-warn-bg text-signal-warn rounded-xl p-5 border border-signal-warn/20 flex items-start gap-3">
-                  <AlertCircleIcon className="w-5 h-5 shrink-0 mt-0.5" />
-                  <div className="text-xs space-y-1">
-                    <p className="font-bold">No Candidate Record Located</p>
-                    <p>
-                      We were unable to locate a candidate record matching &ldquo;{query}&rdquo;. Verify your reference number or email, or submit a new application.
-                    </p>
+                <div className="flex items-start gap-3 rounded-2xl border border-signal-warn/15 bg-signal-warn-bg p-5 text-signal-warn">
+                  <AlertCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold">We couldn&apos;t find a matching application</p>
+                    <p className="mt-1 text-xs leading-5">Check that both the full reference and email address exactly match the original application.</p>
                   </div>
                 </div>
               )}
             </div>
-          )}
-        </div>
+          ) : null}
+        </section>
       </div>
     </div>
   );
