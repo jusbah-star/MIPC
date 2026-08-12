@@ -7,56 +7,90 @@ const config: Config = {
       colors: {
         mipc: {
           green: {
-            50: '#f2f8f4', 100: '#ddefe3', 200: '#bbdec8', 300: '#8fc6a2', 400: '#5fa979',
-            500: '#3c8d5b', 600: '#2b7148', 700: '#235b3c', 800: '#1d4932', 900: '#173c2a', 950: '#0a2116'
+            50: '#f2f8f5',
+            100: '#dcefe5',
+            200: '#bbdfca',
+            300: '#8bc6a5',
+            400: '#58a77e',
+            500: '#338962',
+            600: '#246e4f',
+            700: '#1d5942',
+            800: '#174735',
+            900: '#123a2c',
+            950: '#082219'
           },
           navy: {
-            50: '#f0f6fc',
-            100: '#e1ecf7',
-            200: '#c5dcee',
-            300: '#99c3e2',
-            400: '#67a3d2',
-            500: '#4384c1',
-            600: '#2f69a5',
-            700: '#265487',
-            800: '#22466f',
-            900: '#0b1d3a',
-            950: '#061022'
+            50: '#f4f7fb',
+            100: '#e8eef6',
+            200: '#d1ddeb',
+            300: '#adc2da',
+            400: '#82a1c4',
+            500: '#6282ad',
+            600: '#4e6892',
+            700: '#405577',
+            800: '#374762',
+            900: '#273447',
+            950: '#17202f'
           },
           gold: {
-            300: '#fde047',
-            400: '#facc15',
-            500: '#eab308',
-            600: '#ca8a04',
-            700: '#a16207'
+            50: '#fff9eb',
+            100: '#fdefc7',
+            200: '#f9de8a',
+            300: '#f4c94f',
+            400: '#eab52f',
+            500: '#d79b1f',
+            600: '#b87818',
+            700: '#925716'
           }
         },
         ink: {
-          950: '#111b17', 900: '#17241f', 800: '#25362f', 700: '#3a4c44', 600: '#596961', 500: '#74827b'
+          950: '#101814',
+          900: '#17211d',
+          800: '#26322d',
+          700: '#3c4943',
+          600: '#5a6761',
+          500: '#77827d',
+          400: '#9ba39f'
         },
         parchment: {
-          50: '#FCFBF7', 100: '#F6F3EA', 200: '#ECE6D8', 300: '#DCD2BE'
+          50: '#fbfcfb',
+          100: '#f5f7f5',
+          200: '#e8ece9',
+          300: '#d8ded9'
         },
         brass: {
-          300: '#F1D68C', 400: '#E5BE56', 500: '#C99B2E', 600: '#A77A1E', 700: '#805B18'
+          50: '#fff9eb',
+          100: '#fdefc7',
+          200: '#f9de8a',
+          300: '#f4c94f',
+          400: '#eab52f',
+          500: '#d79b1f',
+          600: '#b87818',
+          700: '#925716'
         },
         signal: {
-          ok: '#15803d',
-          'ok-bg': '#E8F5E9',
-          warn: '#B0752E',
-          'warn-bg': '#FFF8E1',
-          danger: '#A33D3D',
-          'danger-bg': '#FFEBEE'
+          ok: '#177245',
+          'ok-bg': '#eaf7ef',
+          warn: '#a56518',
+          'warn-bg': '#fff6e5',
+          danger: '#b43f4d',
+          'danger-bg': '#fff0f1'
         }
       },
       fontFamily: {
-        display: ['var(--font-serif)', 'Georgia', 'serif'],
-        body: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'monospace']
+        display: ['var(--font-display)', 'Inter', 'system-ui', 'sans-serif'],
+        body: ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'monospace']
       },
       boxShadow: {
-        academic: '0 12px 35px -20px rgba(10, 33, 22, 0.32), 0 2px 8px rgba(10, 33, 22, 0.06)',
-        'academic-lg': '0 28px 70px -30px rgba(10, 33, 22, 0.42), 0 8px 24px rgba(10, 33, 22, 0.09)'
+        xs: '0 1px 2px rgba(16, 24, 20, 0.05)',
+        academic: '0 1px 2px rgba(16, 24, 20, 0.04), 0 8px 24px -16px rgba(16, 24, 20, 0.18)',
+        'academic-lg': '0 24px 60px -30px rgba(16, 24, 20, 0.30), 0 10px 30px -24px rgba(16, 24, 20, 0.20)',
+        float: '0 18px 50px -24px rgba(8, 34, 25, 0.34)'
+      },
+      borderRadius: {
+        '2xl': '1.25rem',
+        '3xl': '1.75rem'
       }
     }
   },
