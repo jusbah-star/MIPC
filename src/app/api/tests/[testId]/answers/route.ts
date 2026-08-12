@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createClient, isDemoModeEnabled, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore, saveAnswerDraft } from '@/lib/data-store';
 import { jsonBodySize, ValidationError } from '@/lib/validation';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
@@ -7,7 +7,7 @@ import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 export async function PUT(request: Request, { params }: { params: Promise<{ testId: string }> }) {
   try {
     const { testId } = await params;
-    enforceRateLimit(`exam-save:${clientAddress(request)}`, 180, 60_000);
+    await enforceRateLimit(`exam-save:${clientAddress(request)}`, 180, 60_000);
     jsonBodySize(request, 2_000_000);
     const body = await request.json();
     const answers = Array.isArray(body.answers) ? body.answers : [];
@@ -25,6 +25,10 @@ export async function PUT(request: Request, { params }: { params: Promise<{ test
       return NextResponse.json({ ok: true, saved: data });
     }
 
+    if (!isDemoModeEnabled()) {
+      return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
+    }
+
     const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((profile) => profile.role === 'student');
     const attempt = dataStore.test_attempts.find(
       (item) => item.test_id === testId && item.student_id === currentStudent?.id && item.status === 'in_progress'
@@ -39,6 +43,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ test
     return NextResponse.json({ ok: true, saved: answers.length, mode: 'demo' });
   } catch (error) {
     if (error instanceof Error && error.message === 'RATE_LIMITED') return NextResponse.json({ error: 'Answers are being saved too frequently.' }, { status: 429 });
+    if (error instanceof Error && (error.message === 'RATE_LIMIT_UNAVAILABLE' || error.message === 'BACKEND_NOT_CONFIGURED')) {
+      return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
+    }
     if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ error: 'Answers could not be saved.' }, { status: 500 });
   }
