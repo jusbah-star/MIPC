@@ -1,12 +1,6 @@
-import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
-import {
-  AcademicCapIcon,
-  MegaphoneIcon,
-  ChevronRightIcon,
-  ClockIcon
-} from '@/components/icons';
+import { ClockIcon, MegaphoneIcon } from '@/components/icons';
 
 export default async function AnnouncementsPage() {
   let announcements = dataStore.announcements;
@@ -19,79 +13,73 @@ export default async function AnnouncementsPage() {
         .select('id, scope, title, body, published_at')
         .order('published_at', { ascending: false });
 
-      if (data && data.length > 0) {
-        announcements = data as any;
-      }
+      if (data && data.length > 0) announcements = data as any;
     } catch {
-      // Fallback
+      // Keep the local fallback if the bulletin feed is temporarily unavailable.
     }
   }
 
   return (
-    <div className="min-h-screen bg-parchment-50 flex flex-col justify-between">
-      <main className="max-w-4xl w-full mx-auto px-6 py-12">
-        <div className="mb-8">
-          <span className="text-xs font-mono uppercase tracking-wider text-mipc-green-700 font-bold block mb-1">
-            Official Gazettes & Bulletins
-          </span>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-ink-950">
-            MIPC Academic Bulletins
-          </h1>
-          <p className="mt-2 text-sm text-ink-700">
-            Directives from the Principal, Academic Registrar, examination timetables, and campus announcements for Musanze campus.
-          </p>
-        </div>
+    <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
+      <div className="grid gap-10 lg:grid-cols-[.68fr_1.32fr] lg:gap-16">
+        <aside className="lg:sticky lg:top-28 lg:self-start">
+          <p className="mipc-eyebrow">Campus news</p>
+          <h1 className="mt-4 max-w-md font-display text-4xl font-extrabold leading-[1.05] tracking-[-0.045em] sm:text-5xl">What&apos;s happening at MIPC.</h1>
+          <p className="mt-5 max-w-md text-base leading-7 text-ink-600">Official announcements, academic updates and campus notices from Muhabura Integrated Polytechnic College.</p>
 
-        <div className="space-y-4">
-          {announcements.map((a) => (
-            <article
-              key={a.id}
-              className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs hover:border-mipc-green-500/50 transition-colors"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <span
-                  className={`text-[11px] font-mono uppercase tracking-wider px-2 py-0.5 rounded font-semibold ${
-                    a.scope === 'public'
-                      ? 'bg-mipc-green-100 text-mipc-green-800'
-                      : a.scope === 'college'
-                      ? 'bg-ink-900/10 text-ink-800'
-                      : 'bg-signal-ok-bg text-signal-ok'
-                  }`}
-                >
-                  {a.scope === 'public' ? 'Public Gazette' : a.scope === 'college' ? 'Campus Notice' : 'Course Bulletin'}
-                </span>
-                <div className="flex items-center gap-1.5 text-xs text-ink-500 font-mono">
-                  <ClockIcon className="w-3.5 h-3.5" />
-                  <time dateTime={a.published_at}>
-                    {new Date(a.published_at).toLocaleDateString('en-GB', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
-                  </time>
-                </div>
-              </div>
-
-              <h2 className="font-display text-lg font-bold text-ink-950 mb-2">
-                {a.title}
-              </h2>
-              <p className="text-sm text-ink-800 leading-relaxed whitespace-pre-line">
-                {a.body}
-              </p>
-            </article>
-          ))}
-
-          {announcements.length === 0 && (
-            <div className="bg-white rounded-xl border border-ink-900/10 p-12 text-center text-ink-500 text-sm">
-              No bulletins published for this period.
+          <div className="mt-8 flex items-center gap-3 rounded-2xl bg-mipc-green-950 p-5 text-white">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-mipc-green-300"><MegaphoneIcon className="h-5 w-5" /></span>
+            <div>
+              <p className="text-sm font-semibold text-white">Official MIPC feed</p>
+              <p className="mt-1 text-xs leading-5 text-white/50">Published notices appear here in reverse chronological order.</p>
             </div>
-          )}
-        </div>
-      </main>
+          </div>
+        </aside>
 
-      <footer className="border-t border-ink-900/10 bg-white py-6 text-center text-xs text-ink-500 font-mono">
-        Muhabura Integrated Polytechnic College (MIPC) · Official Gazette & Records · Musanze, Rwanda
-      </footer>
+        <section>
+          <div className="flex items-end justify-between gap-4 border-b border-ink-900/[0.08] pb-5">
+            <div>
+              <p className="text-xs font-semibold text-mipc-green-700">Latest updates</p>
+              <h2 className="mt-1 text-2xl font-bold tracking-[-0.025em]">Bulletins & announcements</h2>
+            </div>
+            <span className="text-xs font-medium text-ink-400">{announcements.length} published</span>
+          </div>
+
+          <div className="mipc-content-list divide-y divide-ink-900/[0.07]">
+            {announcements.map((announcement, index) => (
+              <article key={announcement.id} className="group py-7 first:pt-7 sm:py-8">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                    announcement.scope === 'public'
+                      ? 'bg-mipc-green-50 text-mipc-green-700'
+                      : announcement.scope === 'college'
+                        ? 'bg-parchment-200 text-ink-600'
+                        : 'bg-mipc-navy-50 text-mipc-navy-700'
+                  }`}>
+                    {announcement.scope === 'public' ? 'Public' : announcement.scope === 'college' ? 'College' : 'Course'}
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs text-ink-400">
+                    <ClockIcon className="h-3.5 w-3.5" />
+                    <time dateTime={announcement.published_at}>
+                      {new Date(announcement.published_at).toLocaleDateString('en-RW', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </time>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-3 sm:grid-cols-[44px_minmax(0,1fr)]">
+                  <span className="text-xs font-semibold text-ink-300">{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <h3 className="font-display text-xl font-bold leading-snug tracking-[-0.02em] text-ink-950 sm:text-2xl">{announcement.title}</h3>
+                    <p className="mt-3 whitespace-pre-line text-sm leading-7 text-ink-600">{announcement.body}</p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          {announcements.length === 0 ? <div className="mipc-empty mt-6">No campus updates have been published yet.</div> : null}
+        </section>
+      </div>
     </div>
   );
 }
