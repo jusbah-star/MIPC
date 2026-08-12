@@ -14,14 +14,26 @@ function redirectWithCookies(url: URL | string, sourceResponse: NextResponse) {
   return redirectResponse;
 }
 
+function backendUnavailable() {
+  return new NextResponse('MIPC portal is temporarily unavailable because its authentication backend is not configured.', {
+    status: 503,
+    headers: { 'Cache-Control': 'no-store' }
+  });
+}
+
 export async function proxy(request: NextRequest) {
-  const { response, supabase, user } = await updateSession(request);
+  const { response, supabase, user, demoEnabled } = await updateSession(request);
   const path = request.nextUrl.pathname;
+
+  if (path === '/login' && !supabase && !demoEnabled) return backendUnavailable();
+
   const portalSegment = path.split('/')[1];
   if (!(portalSegment in PORTAL_ROLES)) return response;
 
-  const demoRole = request.cookies.get('mipc_demo_role')?.value;
   if (!supabase) {
+    if (!demoEnabled) return backendUnavailable();
+
+    const demoRole = request.cookies.get('mipc_demo_role')?.value;
     if (demoRole && demoRole in PORTAL_ROLES) {
       if (portalSegment !== demoRole) return redirectWithCookies(new URL(`/${demoRole}`, request.url), response);
       return response;
@@ -37,7 +49,13 @@ export async function proxy(request: NextRequest) {
     return redirectWithCookies(redirectUrl, response);
   }
 
-  const { data: profile } = await supabase.from('profiles').select('role, account_status').eq('id', user.id).single();
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, account_status')
+    .eq('id', user.id)
+    .single();
+  if (profileError) return backendUnavailable();
+
   if ((profile as any)?.account_status === 'suspended') {
     const suspendedUrl = new URL('/login', request.url);
     suspendedUrl.searchParams.set('error', 'account_suspended');

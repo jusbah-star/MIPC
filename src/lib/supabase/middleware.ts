@@ -12,16 +12,19 @@ export async function updateSession(request: NextRequest) {
     supabaseKey &&
     !supabaseUrl.includes('your-project-ref')
   );
+  const demoEnabled = Boolean(
+    !isConfigured &&
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_MIPC_DEMO_MODE === 'true'
+  );
 
   if (!isConfigured) {
-    // In demo/offline mode, read active demo role from cookie if set
-    const demoRole = request.cookies.get('mipc_demo_role')?.value;
-
+    const demoRole = demoEnabled ? request.cookies.get('mipc_demo_role')?.value : undefined;
     const demoUser = demoRole
       ? { id: `user-${demoRole}-1`, email: `${demoRole}@mipc.ac.rw` }
       : null;
 
-    return { response, supabase: null, user: demoUser };
+    return { response, supabase: null, user: demoUser, demoEnabled, configured: false };
   }
 
   try {
@@ -45,8 +48,8 @@ export async function updateSession(request: NextRequest) {
     );
 
     const { data: { user } } = await supabase.auth.getUser();
-    return { response, supabase, user };
+    return { response, supabase, user, demoEnabled: false, configured: true };
   } catch {
-    return { response, supabase: null, user: null };
+    return { response, supabase: null, user: null, demoEnabled: false, configured: true };
   }
 }

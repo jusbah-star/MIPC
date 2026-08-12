@@ -6,6 +6,7 @@ import test from 'node:test';
 const root = process.cwd();
 const migration = await readFile(join(root, 'supabase/migrations/0005_production_hardening.sql'), 'utf8');
 const rbacMigration = await readFile(join(root, 'supabase/migrations/0006_rbac_platform_completion.sql'), 'utf8');
+const rateLimitMigration = await readFile(join(root, 'supabase/migrations/0007_distributed_rate_limiting.sql'), 'utf8');
 
 test('assessment mutations are exposed only through server-owned RPCs', () => {
   assert.match(migration, /create or replace function start_test_attempt/);
@@ -61,9 +62,47 @@ test('assessment endpoints enforce request-rate boundaries', async () => {
   ];
   for (const endpoint of endpoints) {
     const source = await readFile(join(root, endpoint), 'utf8');
-    assert.match(source, /(?:rateLimit|enforceRateLimit)\(/, endpoint);
+    assert.match(source, /await\s+enforceRateLimit\(/, endpoint);
     assert.match(source, /status: 429/, endpoint);
+    assert.match(source, /status: 503/, endpoint);
   }
+});
+
+test('live rate limiting is shared, hashed and service-role only', async () => {
+  const source = await readFile(join(root, 'src/lib/rate-limit.ts'), 'utf8');
+  assert.match(source, /createHash\('sha256'\)/);
+  assert.match(source, /rpc\('consume_rate_limit'/);
+  assert.match(source, /RATE_LIMIT_UNAVAILABLE/);
+  assert.match(rateLimitMigration, /create table if not exists public\.rate_limit_buckets/);
+  assert.match(rateLimitMigration, /alter table public\.rate_limit_buckets enable row level security/);
+  assert.match(rateLimitMigration, /revoke all on table public\.rate_limit_buckets from public, anon, authenticated/);
+  assert.match(rateLimitMigration, /grant select, insert, update, delete on table public\.rate_limit_buckets to service_role/);
+  assert.match(rateLimitMigration, /security invoker/);
+  assert.match(rateLimitMigration, /grant execute on function public\.consume_rate_limit[\s\S]*to service_role/);
+});
+
+test('production portal cannot silently fall back to demonstration roles', async () => {
+  const serverSource = await readFile(join(root, 'src/lib/supabase/server.ts'), 'utf8');
+  const middlewareSource = await readFile(join(root, 'src/lib/supabase/middleware.ts'), 'utf8');
+  const proxySource = await readFile(join(root, 'src/proxy.ts'), 'utf8');
+  assert.match(serverSource, /process\.env\.NODE_ENV !== 'production'/);
+  assert.match(serverSource, /NEXT_PUBLIC_MIPC_DEMO_MODE === 'true'/);
+  assert.match(middlewareSource, /demoEnabled/);
+  assert.match(proxySource, /if \(!demoEnabled\) return backendUnavailable\(\)/);
+  assert.match(proxySource, /status: 503/);
+});
+
+test('global response headers include an enforced CSP', async () => {
+  const source = await readFile(join(root, 'next.config.mjs'), 'utf8');
+  assert.match(source, /Content-Security-Policy/);
+  assert.match(source, /frame-ancestors 'none'/);
+  assert.match(source, /object-src 'none'/);
+  assert.match(source, /https:\/\/\*\.supabase\.co/);
+});
+
+test('platform-specific SWC binary is not a direct application dependency', async () => {
+  const packageJson = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+  assert.equal(packageJson.dependencies?.['@next/swc-win32-x64-msvc'], undefined);
 });
 
 test('client components never import the server-only demonstration store', async () => {

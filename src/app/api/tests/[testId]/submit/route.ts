@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, isDemoModeEnabled, isSupabaseConfigured } from '@/lib/supabase/server';
 import { submitAndGradeAttempt } from '@/lib/test-attempts';
 import { dataStore } from '@/lib/data-store';
 import { jsonBodySize, ValidationError } from '@/lib/validation';
@@ -11,12 +11,8 @@ export async function POST(
 ) {
   try {
     const { testId } = await params;
-    enforceRateLimit(`exam-submit:${clientAddress(request)}`, 15, 60_000);
+    await enforceRateLimit(`exam-submit:${clientAddress(request)}`, 15, 60_000);
     jsonBodySize(request, 2_000_000);
-    const isSupabaseConfigured = Boolean(
-      process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-project-ref')
-    );
 
     const body = await request.json().catch(() => ({}));
     let answerEntries: { questionId: string; response: string }[] = [];
@@ -30,7 +26,7 @@ export async function POST(
       }));
     }
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured()) {
       try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -59,7 +55,10 @@ export async function POST(
       }
     }
 
-    // Local / Standalone Data Store
+    if (!isDemoModeEnabled()) {
+      return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
+    }
+
     const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((p) => p.role === 'student');
     const attempt = dataStore.test_attempts.find(
       (a) => a.test_id === testId && a.student_id === currentStudent?.id
@@ -77,6 +76,9 @@ export async function POST(
     return NextResponse.json({ ok: true, ...result });
   } catch (err: any) {
     if (err instanceof Error && err.message === 'RATE_LIMITED') return NextResponse.json({ error: 'Too many submission requests. Try again shortly.' }, { status: 429 });
+    if (err instanceof Error && (err.message === 'RATE_LIMIT_UNAVAILABLE' || err.message === 'BACKEND_NOT_CONFIGURED')) {
+      return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
+    }
     if (err instanceof ValidationError) return NextResponse.json({ error: err.message }, { status: 400 });
     return NextResponse.json({ error: 'The examination could not be submitted.' }, { status: 500 });
   }

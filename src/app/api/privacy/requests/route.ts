@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createAdminClient, isDemoModeEnabled, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
@@ -9,7 +9,7 @@ const REQUEST_TYPES = new Set(['access', 'rectification', 'restriction', 'erasur
 export async function POST(request: Request) {
   try {
     jsonBodySize(request, 24_000);
-    enforceRateLimit(`privacy:${clientAddress(request)}`, 5, 60 * 60 * 1000);
+    await enforceRateLimit(`privacy:${clientAddress(request)}`, 5, 60 * 60 * 1000);
     const body = await request.json();
     if (body.website) return NextResponse.json({ ok: true });
 
@@ -23,6 +23,9 @@ export async function POST(request: Request) {
     };
 
     if (!isSupabaseConfigured()) {
+      if (!isDemoModeEnabled()) {
+        return NextResponse.json({ error: 'Your request could not be recorded. Please try again.' }, { status: 503 });
+      }
       const reference = `privacy-${Date.now()}`;
       (dataStore as any).data_subject_requests ??= [];
       (dataStore as any).data_subject_requests.push({ id: reference, ...payload, status: 'received' });
@@ -43,6 +46,9 @@ export async function POST(request: Request) {
     if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Error && error.message === 'RATE_LIMITED') {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 });
+    }
+    if (error instanceof Error && (error.message === 'RATE_LIMIT_UNAVAILABLE' || error.message === 'BACKEND_NOT_CONFIGURED')) {
+      return NextResponse.json({ error: 'Your request could not be recorded. Please try again.' }, { status: 503 });
     }
     return NextResponse.json({ error: 'Your request could not be recorded. Please try again.' }, { status: 500 });
   }

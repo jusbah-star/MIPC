@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createAdminClient, isDemoModeEnabled, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
@@ -7,12 +7,15 @@ import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 export async function POST(request: Request) {
   try {
     jsonBodySize(request, 8_000);
-    enforceRateLimit(`admission-status:${clientAddress(request)}`, 10, 60 * 60 * 1000);
+    await enforceRateLimit(`admission-status:${clientAddress(request)}`, 10, 60 * 60 * 1000);
     const body = await request.json();
     const reference = requiredText(body.reference, 'Application reference', 64, 5);
     const email = emailAddress(body.email);
 
     if (!isSupabaseConfigured()) {
+      if (!isDemoModeEnabled()) {
+        return NextResponse.json({ error: 'Status is temporarily unavailable.' }, { status: 503 });
+      }
       const record = dataStore.applications.find(
         (item) => item.id.toLowerCase() === reference.toLowerCase() && item.email.toLowerCase() === email
       );
@@ -36,6 +39,9 @@ export async function POST(request: Request) {
     if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Error && error.message === 'RATE_LIMITED') {
       return NextResponse.json({ error: 'Too many status checks. Please wait before trying again.' }, { status: 429 });
+    }
+    if (error instanceof Error && (error.message === 'RATE_LIMIT_UNAVAILABLE' || error.message === 'BACKEND_NOT_CONFIGURED')) {
+      return NextResponse.json({ error: 'Status is temporarily unavailable.' }, { status: 503 });
     }
     return NextResponse.json({ error: 'Status is temporarily unavailable.' }, { status: 500 });
   }
