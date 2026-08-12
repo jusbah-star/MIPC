@@ -20,21 +20,27 @@ export default async function PortalLayout({ children }: { children: React.React
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) redirect('/login');
+
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('role, full_name, email, account_status')
       .eq('id', user.id)
       .single();
+
     if (error || !profile) throw new Error('Your MIPC profile could not be loaded.');
+
     const p = profile as any;
     if (p.account_status === 'suspended') redirect('/login?error=account_suspended');
+
     role = p.role;
     fullName = p.full_name;
     email = p.email;
   } else {
-    // In standalone / demo mode, read active role from cookies or active dataStore user
     const cookieStore = await cookies();
-    const demoCookieRole = (cookieStore.get('mipc_demo_role')?.value || cookieStore.get('ashcombe_demo_role')?.value) as UserRole | undefined;
+    const demoCookieRole = (
+      cookieStore.get('mipc_demo_role')?.value || cookieStore.get('ashcombe_demo_role')?.value
+    ) as UserRole | undefined;
+
     if (demoCookieRole && ['student', 'lecturer', 'admin'].includes(demoCookieRole)) {
       role = demoCookieRole;
       const matched = dataStore.profiles.find((p) => p.role === role);
@@ -51,46 +57,59 @@ export default async function PortalLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="min-h-screen bg-parchment-50 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      {/* Institutional Sidebar */}
-      <aside className="sticky top-0 hidden h-screen overflow-y-auto border-r border-ink-900/10 bg-white/95 p-4 shadow-academic lg:flex lg:flex-col lg:justify-between">
-        <PortalNav role={role} fullName={fullName} email={email} isDemo={!isSupabaseConfigured} />
-        <div className="mt-4 pt-3 border-t border-ink-900/10">
-          <SignOutButton />
+    <div className="min-h-screen bg-[#f5f7f5] lg:grid lg:grid-cols-[276px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen overflow-y-auto bg-mipc-green-950 p-4 text-white lg:flex lg:flex-col">
+        <div className="min-h-0 flex-1">
+          <PortalNav role={role} fullName={fullName} email={email} isDemo={!isSupabaseConfigured} />
+        </div>
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <SignOutButton variant="dark" />
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Top Academic Ribbon */}
-        <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between border-b border-ink-900/10 bg-white/90 px-5 backdrop-blur-md sm:px-8">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-mono tracking-wider uppercase text-mipc-green-800 font-bold bg-mipc-green-100 border border-mipc-green-300/80 px-2 py-0.5 rounded">
-              Academic Year 2026/2027
-            </span>
-            <span className="text-xs text-ink-600 hidden sm:inline font-medium">
-              Muhabura Integrated Polytechnic College (MIPC) · Musanze Campus
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-signal-ok animate-pulse" />
-              <span className="text-xs font-mono text-ink-700 font-medium">MIPC Online</span>
+        <header className="sticky top-0 z-30 border-b border-ink-900/[0.07] bg-white/95 backdrop-blur-xl">
+          <div className="mx-auto flex h-[72px] w-full max-w-[1500px] items-center justify-between gap-4 px-5 sm:px-8">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-mipc-green-700">MIPC Digital Campus</p>
+              <p className="mt-0.5 truncate text-sm font-semibold text-ink-900">
+                {role === 'student' ? 'Student workspace' : role === 'lecturer' ? 'Faculty workspace' : 'Administration workspace'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="hidden items-center gap-2 rounded-full border border-ink-900/[0.07] bg-parchment-100 px-3 py-1.5 sm:flex">
+                <span className="h-2 w-2 rounded-full bg-signal-ok" />
+                <span className="text-xs font-medium text-ink-600">Systems online</span>
+              </div>
+              <span className="rounded-full bg-mipc-green-50 px-3 py-1.5 text-xs font-semibold text-mipc-green-800">
+                2026/2027
+              </span>
             </div>
           </div>
         </header>
 
-        <details className="border-b border-ink-900/10 bg-white lg:hidden">
-          <summary className="cursor-pointer list-none px-5 py-3 text-sm font-bold text-mipc-green-900 marker:content-none">
-            <span className="flex items-center justify-between">Portal menu <span aria-hidden="true">＋</span></span>
+        <details className="group border-b border-ink-900/[0.07] bg-white lg:hidden">
+          <summary className="cursor-pointer list-none px-5 py-3.5 marker:content-none">
+            <span className="flex items-center justify-between gap-4 text-sm font-semibold text-ink-900">
+              <span className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-mipc-green-900 text-xs font-bold text-white">M</span>
+                <span className="truncate">Menu · {fullName}</span>
+              </span>
+              <span aria-hidden="true" className="text-lg font-normal text-ink-500 transition group-open:rotate-45">＋</span>
+            </span>
           </summary>
-          <div className="max-h-[70vh] overflow-y-auto border-t border-parchment-200 p-4">
-            <PortalNav role={role} fullName={fullName} email={email} isDemo={!isSupabaseConfigured} />
-            <div className="mt-4 border-t border-parchment-200 pt-4"><SignOutButton /></div>
+          <div className="max-h-[75vh] overflow-y-auto bg-mipc-green-950 p-4 text-white">
+            <PortalNav role={role} fullName={fullName} email={email} isDemo={!isSupabaseConfigured} compact />
+            <div className="mt-4 border-t border-white/10 pt-3">
+              <SignOutButton variant="dark" />
+            </div>
           </div>
         </details>
 
-        <main id="main-content" className="mx-auto w-full max-w-7xl flex-1 p-5 sm:p-8">{children}</main>
+        <main id="main-content" className="mx-auto w-full max-w-[1500px] flex-1 p-5 sm:p-7 lg:p-8 xl:p-10">
+          {children}
+        </main>
       </div>
     </div>
   );
