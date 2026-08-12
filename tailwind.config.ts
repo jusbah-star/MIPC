@@ -80,7 +80,7 @@ const config: Config = {
       fontFamily: {
         display: ['var(--font-display)', 'Inter', 'system-ui', 'sans-serif'],
         body: ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'ui-monospace', 'monospace']
+        mono: ['var(--font-body)', 'Inter', 'system-ui', 'sans-serif']
       },
       boxShadow: {
         xs: '0 1px 2px rgba(16, 24, 20, 0.05)',
