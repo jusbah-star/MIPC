@@ -1,155 +1,110 @@
 import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
-import {
-  ClockIcon,
-  CheckCircleIcon,
-  ChevronRightIcon,
-  AlertCircleIcon,
-  AwardIcon
-} from '@/components/icons';
+import { CheckCircleIcon, ChevronRightIcon, ClockIcon } from '@/components/icons';
 
 export default async function StudentTestsPage() {
-  const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((p) => p.role === 'student');
+  const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((profile) => profile.role === 'student');
   const studentId = currentStudent?.id ?? 'user-student-1';
 
   let tests = dataStore.tests;
-  let attempts = dataStore.test_attempts.filter((a) => a.student_id === studentId);
+  let attempts = dataStore.test_attempts.filter((attempt) => attempt.student_id === studentId);
   let courses = dataStore.courses;
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Student authentication required.');
+
     const [testResult, attemptResult] = await Promise.all([
       supabase.from('tests').select('*').eq('published', true).order('available_from', { ascending: true }),
       supabase.from('test_attempts').select('*').eq('student_id', user.id)
     ]);
     if (testResult.error || attemptResult.error) throw new Error(testResult.error?.message ?? attemptResult.error?.message);
+
     tests = (testResult.data ?? []) as any;
     attempts = (attemptResult.data ?? []) as any;
     const courseIds = Array.from(new Set(tests.map((test) => test.course_id)));
+
     if (courseIds.length) {
       const { data: courseRows, error } = await supabase.from('courses').select('*').in('id', courseIds);
       if (error) throw new Error(error.message);
       courses = (courseRows ?? []) as any;
-    } else courses = [];
+    } else {
+      courses = [];
+    }
   }
 
-  const attemptByTest = new Map(attempts.map((a) => [a.test_id, a]));
+  const attemptByTest = new Map(attempts.map((attempt) => [attempt.test_id, attempt]));
+  const now = new Date();
+  const openCount = tests.filter((test) => now >= new Date(test.available_from) && now <= new Date(test.available_until)).length;
+  const completedCount = attempts.filter((attempt) => ['submitted', 'graded', 'auto_submitted'].includes(attempt.status as any)).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-brass-600 font-bold block mb-1">
-            Examination Center
-          </span>
-          <h1 className="font-display text-3xl font-bold text-ink-950">
-            Timed Examinations & Quizzes
-          </h1>
-          <p className="mt-1 text-sm text-ink-700">
-            Server-timed, auto-graded academic assessments. Duration caps are enforced upon starting.
-          </p>
+    <div className="space-y-7">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-3xl">
+          <p className="mipc-eyebrow">Examinations</p>
+          <h1 className="mipc-page-title">Assessments & quizzes</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-600">See what is open, resume an active attempt, and review completed assessment results.</p>
         </div>
-      </div>
+        <div className="flex gap-2">
+          <span className="rounded-full bg-mipc-green-50 px-3 py-1.5 text-xs font-semibold text-mipc-green-700">{openCount} open</span>
+          <span className="rounded-full bg-parchment-200 px-3 py-1.5 text-xs font-semibold text-ink-600">{completedCount} completed</span>
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 gap-4">
+      <section className="grid gap-4">
         {tests.map((test) => {
-          const course = courses.find((c) => c.id === test.course_id);
+          const course = courses.find((item) => item.id === test.course_id);
           const attempt = attemptByTest.get(test.id);
-          const now = new Date();
           const isOpen = now >= new Date(test.available_from) && now <= new Date(test.available_until);
-          const isCompleted = (attempt?.status as any) === 'submitted' || (attempt?.status as any) === 'graded' || (attempt?.status as any) === 'auto_submitted';
+          const isCompleted = ['submitted', 'graded', 'auto_submitted'].includes((attempt?.status as any) ?? '');
           const isInProgress = (attempt?.status as any) === 'in_progress';
+          const passMark = (test as any).passing_score ?? 50;
+          const score = Number(attempt?.score ?? 0);
 
           return (
-            <div
-              key={test.id}
-              className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs hover:border-brass-400/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-6"
-            >
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-mono font-bold text-brass-700 bg-brass-400/15 px-2 py-0.5 rounded">
-                    {course?.code ?? 'MODULE'}
-                  </span>
-                  <span className="text-xs font-mono text-ink-500">
-                    {course?.title ?? 'Academic Course'}
-                  </span>
-                  {isOpen ? (
-                    <span className="text-[10px] font-mono text-signal-ok bg-signal-ok-bg px-2 py-0.5 rounded font-semibold uppercase">
-                      Open for examination
-                    </span>
+            <article key={test.id} className="rounded-2xl border border-ink-900/[0.08] bg-white p-5 shadow-xs transition hover:border-mipc-green-700/20 hover:shadow-academic sm:p-6">
+              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-mipc-green-50 px-2.5 py-1 text-[11px] font-semibold text-mipc-green-700">{course?.code ?? 'Course'}</span>
+                    <span className="truncate text-xs text-ink-400">{course?.title ?? 'Academic course'}</span>
+                    {isOpen && !isCompleted ? <span className="inline-flex items-center gap-1.5 rounded-full bg-signal-ok-bg px-2.5 py-1 text-[11px] font-semibold text-signal-ok"><span className="h-1.5 w-1.5 rounded-full bg-signal-ok" /> Open now</span> : null}
+                  </div>
+
+                  <h2 className="mt-4 text-xl font-bold leading-snug tracking-[-0.025em] text-ink-950">{test.title}</h2>
+
+                  <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ink-500">
+                    <span className="inline-flex items-center gap-1.5"><ClockIcon className="h-3.5 w-3.5 text-mipc-green-700" /> {test.duration_minutes} minutes</span>
+                    <span>Pass mark {passMark}%</span>
+                    <span>{new Date(test.available_from).toLocaleDateString('en-RW', { day: 'numeric', month: 'short' })} – {new Date(test.available_until).toLocaleDateString('en-RW', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                </div>
+
+                <div className="shrink-0">
+                  {isCompleted ? (
+                    <div className="min-w-40 rounded-2xl bg-parchment-50 p-4 text-left md:text-right">
+                      <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-signal-ok"><CheckCircleIcon className="h-4 w-4" /> Completed</div>
+                      <p className="mt-2 font-display text-2xl font-extrabold tracking-tight text-ink-950">{score}%</p>
+                      <p className="mt-0.5 text-xs text-ink-500">{score >= passMark ? 'Pass mark achieved' : 'See lecturer feedback'}</p>
+                    </div>
+                  ) : isInProgress ? (
+                    <Link href={`/student/tests/${test.id}`} className="mipc-button-primary min-w-40">Resume exam <ChevronRightIcon className="h-4 w-4" /></Link>
+                  ) : isOpen ? (
+                    <Link href={`/student/tests/${test.id}`} className="mipc-button-primary min-w-40">Begin exam <ChevronRightIcon className="h-4 w-4" /></Link>
                   ) : (
-                    <span className="text-[10px] font-mono text-ink-500 bg-parchment-200 px-2 py-0.5 rounded font-semibold uppercase">
-                      Closed
-                    </span>
+                    <span className="inline-flex min-h-10 items-center rounded-xl bg-parchment-100 px-4 text-sm font-medium text-ink-500">Exam window closed</span>
                   )}
                 </div>
-
-                <h2 className="font-display text-xl font-bold text-ink-950">
-                  {test.title}
-                </h2>
-
-                <div className="flex flex-wrap items-center gap-4 text-xs text-ink-600 font-mono">
-                  <div className="flex items-center gap-1">
-                    <ClockIcon className="w-3.5 h-3.5 text-brass-600" />
-                    <span>Duration: {test.duration_minutes} Minutes</span>
-                  </div>
-                  <div>
-                    <span>Passing Standard: {(test as any).passing_score ?? 50}%</span>
-                  </div>
-                  <div>
-                    <span>
-                      Window: {new Date(test.available_from).toLocaleDateString('en-GB')} – {new Date(test.available_until).toLocaleDateString('en-GB')}
-                    </span>
-                  </div>
-                </div>
               </div>
-
-              <div className="flex items-center gap-3 shrink-0">
-                {isCompleted ? (
-                  <div className="text-right">
-                    <div className="flex items-center gap-1.5 text-sm font-bold text-signal-ok font-mono">
-                      <CheckCircleIcon className="w-4 h-4" />
-                      <span>Graded: {attempt?.score ?? 0}%</span>
-                    </div>
-                    <span className="text-[11px] text-ink-500 font-mono">
-                      {(attempt?.score ?? 0) >= ((test as any).passing_score ?? 50) ? 'Passed' : 'Pending Review'}
-                    </span>
-                  </div>
-                ) : isInProgress ? (
-                  <Link
-                    href={`/student/tests/${test.id}`}
-                    className="rounded-lg bg-brass-500 px-5 py-2.5 text-sm font-semibold text-ink-950 hover:bg-brass-400 transition-colors shadow-xs flex items-center gap-1.5 animate-pulse"
-                  >
-                    <span>Resume Attempt</span>
-                    <ChevronRightIcon className="w-4 h-4" />
-                  </Link>
-                ) : isOpen ? (
-                  <Link
-                    href={`/student/tests/${test.id}`}
-                    className="rounded-lg bg-ink-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-ink-800 transition-colors shadow-xs flex items-center gap-1.5"
-                  >
-                    <span>Begin Exam</span>
-                    <ChevronRightIcon className="w-4 h-4 text-brass-400" />
-                  </Link>
-                ) : (
-                  <span className="text-xs font-mono text-ink-500 bg-parchment-100 px-3 py-1.5 rounded">
-                    Exam Window Closed
-                  </span>
-                )}
-              </div>
-            </div>
+            </article>
           );
         })}
 
-        {tests.length === 0 && (
-          <div className="bg-white rounded-xl border border-ink-900/10 p-12 text-center text-ink-500">
-            No examinations currently scheduled.
-          </div>
-        )}
-      </div>
+        {tests.length === 0 ? <div className="mipc-empty">No examinations are currently scheduled.</div> : null}
+      </section>
     </div>
   );
 }
