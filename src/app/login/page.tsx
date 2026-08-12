@@ -1,21 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
   AcademicCapIcon,
-  BookOpenIcon,
-  ShieldCheckIcon,
-  UsersIcon,
-  ChevronRightIcon,
   AlertCircleIcon,
-  CheckCircleIcon
+  BookOpenIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  ShieldCheckIcon,
+  UsersIcon
 } from '@/components/icons';
 import type { UserRole } from '@/lib/database.types';
 
-import { Suspense } from 'react';
+const demoProfiles: Array<{
+  role: UserRole;
+  title: string;
+  description: string;
+  icon: typeof UsersIcon;
+}> = [
+  { role: 'student', title: 'Student', description: 'Courses, coursework and examinations', icon: UsersIcon },
+  { role: 'lecturer', title: 'Lecturer', description: 'Teaching, assessment and grading', icon: BookOpenIcon },
+  { role: 'admin', title: 'Registrar', description: 'Admissions, users and academic records', icon: ShieldCheckIcon }
+];
 
 function LoginPageContent() {
   const router = useRouter();
@@ -33,16 +42,12 @@ function LoginPageContent() {
 
     try {
       const redirectUrl = new URL('/auth/callback', window.location.origin);
-      if (next && next.startsWith('/')) {
-        redirectUrl.searchParams.set('next', next);
-      }
+      if (next && next.startsWith('/')) redirectUrl.searchParams.set('next', next);
 
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOtp({
         email,
-        options: {
-          emailRedirectTo: redirectUrl.toString()
-        }
+        options: { emailRedirectTo: redirectUrl.toString() }
       });
 
       setStatus(error ? 'error' : 'sent');
@@ -59,177 +64,161 @@ function LoginPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-parchment-50 flex flex-col justify-between py-12 px-6">
-      <div className="max-w-md w-full mx-auto my-auto">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 group mb-4">
-            <div className="w-12 h-12 rounded-xl bg-ink-900 border border-mipc-green-500/40 flex items-center justify-center text-mipc-green-400 shadow-academic">
-              <AcademicCapIcon className="w-7 h-7" />
-            </div>
+    <main className="min-h-screen bg-white lg:grid lg:grid-cols-[.92fr_1.08fr]">
+      <section className="relative hidden min-h-screen overflow-hidden bg-mipc-green-950 text-white lg:block">
+        <img
+          src="https://mipc.ac.rw/wp-content/uploads/elementor/thumbs/5Q2A8774-scaled-qfzekqx3vew9e5jr1c641sciixqzvx5jos3rkxugf4.jpg"
+          alt="Muhabura Integrated Polytechnic College campus"
+          className="absolute inset-0 h-full w-full object-cover opacity-45"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-mipc-green-950/35 via-mipc-green-950/60 to-mipc-green-950" />
+        <div className="relative flex min-h-screen flex-col justify-between p-10 xl:p-14">
+          <Link href="/" className="flex items-center gap-3 self-start">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-mipc-green-900 shadow-academic">
+              <AcademicCapIcon className="h-6 w-6" />
+            </span>
+            <span>
+              <span className="block font-display text-lg font-extrabold tracking-tight text-white">MIPC</span>
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/55">Digital Campus</span>
+            </span>
           </Link>
-          <h1 className="font-display text-3xl font-bold text-ink-950">
-            Institutional Sign In
-          </h1>
-          <p className="mt-2 text-xs font-mono uppercase tracking-wider text-mipc-green-700 font-bold">
-            Muhabura Integrated Polytechnic College (MIPC)
-          </p>
-          <p className="text-[11px] font-mono text-ink-500 italic mt-0.5">
-            &ldquo;Striving for Excellence&rdquo; · Musanze, Rwanda
-          </p>
+
+          <div className="max-w-xl pb-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-mipc-green-300">Secure academic access</p>
+            <h1 className="mt-5 font-display text-5xl font-extrabold leading-[1.02] tracking-[-0.05em] text-white xl:text-6xl">
+              One account for your MIPC journey.
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-7 text-white/65">
+              Access courses, assessments, admissions and academic administration through the college&apos;s secure digital campus.
+            </p>
+            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+              {['Passwordless email sign-in', 'Role-based academic access'].map((item) => (
+                <div key={item} className="flex items-center gap-2.5 text-sm font-medium text-white/75">
+                  <CheckCircleIcon className="h-4 w-4 text-mipc-green-300" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-xs text-white/40">Muhabura Integrated Polytechnic College · Musanze, Rwanda</p>
         </div>
+      </section>
 
-        <div className="bg-white rounded-2xl border border-ink-900/10 p-8 shadow-academic">
-          {suspended && <div className="mb-5 flex items-start gap-2 rounded-xl border border-signal-danger/25 bg-signal-danger-bg p-3 text-sm text-signal-danger"><AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" /><span>This account is suspended. Contact the MIPC Academic Registrar if you believe this is an error.</span></div>}
-          {status === 'sent' ? (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 rounded-full bg-signal-ok-bg text-signal-ok flex items-center justify-center mx-auto mb-3">
-                <CheckCircleIcon className="w-7 h-7" />
-              </div>
-              <h2 className="font-display text-lg font-bold text-ink-950">
-                Magic Link Dispatched
-              </h2>
-              <p className="mt-2 text-xs text-ink-700 leading-relaxed font-mono">
-                An authenticated login link has been issued to <strong className="text-ink-950">{email}</strong>. Check your inbox to proceed.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleMagicLink} className="space-y-4">
-              <div>
-                <label className="block text-xs font-mono uppercase tracking-wider font-semibold text-ink-800 mb-1.5">
-                  Institutional Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@mipc.ac.rw"
-                  className="w-full rounded-lg border border-ink-900/15 px-3.5 py-2.5 text-sm text-ink-950 placeholder:text-ink-400 outline-none focus-visible:border-mipc-green-500 bg-parchment-50/50"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={status === 'sending'}
-                className="w-full rounded-lg bg-ink-900 py-2.5 px-4 text-sm font-medium text-white hover:bg-ink-800 transition-colors shadow-xs disabled:opacity-60"
-              >
-                {status === 'sending' ? 'Sending magic link…' : 'Send Authenticated Link'}
-              </button>
-              {status === 'error' && (
-                <div className="flex items-center gap-2 text-xs text-signal-danger bg-signal-danger-bg p-2.5 rounded-lg">
-                  <AlertCircleIcon className="w-4 h-4 shrink-0" />
-                  <span>Unable to dispatch OTP. You can use 1-Click Demo below.</span>
-                </div>
-              )}
-            </form>
-          )}
-
-          {/* Quick 1-Click Demo Profiles */}
-          {demoMode && <div className="mt-8 pt-6 border-t border-ink-900/10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-ink-600 font-bold">
-                Instant Demo Exploration
-              </span>
-              <span className="text-[10px] font-mono bg-mipc-green-100 text-mipc-green-800 px-2 py-0.5 rounded font-semibold border border-mipc-green-200">
-                1-Click Access
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('student')}
-                className="w-full text-left p-3 rounded-lg border border-parchment-300 bg-parchment-50/60 hover:bg-parchment-100/90 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-ink-900 text-mipc-green-400 flex items-center justify-center font-mono text-xs font-bold">
-                    <UsersIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-950 flex items-center gap-2">
-                      <span>Jean-Luc Habimana</span>
-                      <span className="text-[10px] font-mono uppercase bg-mipc-green-100 text-mipc-green-800 px-1.5 py-0.2 rounded font-semibold">
-                        Student
-                      </span>
-                    </div>
-                    <div className="text-xs text-ink-600 font-mono">
-                      B-Tech Software Engineering · ICT
-                    </div>
-                  </div>
-                </div>
-                <ChevronRightIcon className="w-4 h-4 text-ink-400 group-hover:text-mipc-green-600 group-hover:translate-x-0.5 transition-all" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('lecturer')}
-                className="w-full text-left p-3 rounded-lg border border-parchment-300 bg-parchment-50/60 hover:bg-parchment-100/90 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-ink-900 text-mipc-green-400 flex items-center justify-center font-mono text-xs font-bold">
-                    <BookOpenIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-950 flex items-center gap-2">
-                      <span>Eng. Dr. Emmanuel Ndayisaba</span>
-                      <span className="text-[10px] font-mono uppercase bg-mipc-green-100 text-mipc-green-800 px-1.5 py-0.2 rounded font-semibold">
-                        Faculty
-                      </span>
-                    </div>
-                    <div className="text-xs text-ink-600 font-mono">
-                      Senior Lecturer · Head of ICT Faculty
-                    </div>
-                  </div>
-                </div>
-                <ChevronRightIcon className="w-4 h-4 text-ink-400 group-hover:text-mipc-green-600 group-hover:translate-x-0.5 transition-all" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('admin')}
-                className="w-full text-left p-3 rounded-lg border border-parchment-300 bg-parchment-50/60 hover:bg-parchment-100/90 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-ink-900 text-mipc-green-400 flex items-center justify-center font-mono text-xs font-bold">
-                    <ShieldCheckIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-950 flex items-center gap-2">
-                      <span>Rev. Dr. Laurent Shyaka</span>
-                      <span className="text-[10px] font-mono uppercase bg-mipc-green-100 text-mipc-green-800 px-1.5 py-0.2 rounded font-semibold">
-                        Registrar
-                      </span>
-                    </div>
-                    <div className="text-xs text-ink-600 font-mono">
-                      Office of the Academic Registrar & Admissions
-                    </div>
-                  </div>
-                </div>
-                <ChevronRightIcon className="w-4 h-4 text-ink-400 group-hover:text-mipc-green-600 group-hover:translate-x-0.5 transition-all" />
-              </button>
-            </div>
-          </div>}
-        </div>
-
-        <div className="text-center mt-6">
-          <Link
-            href="/"
-            className="text-xs font-mono text-ink-600 hover:text-ink-950 transition-colors"
-          >
-            &larr; Return to MIPC Official Portal
+      <section className="flex min-h-screen items-center justify-center bg-parchment-50 px-5 py-10 sm:px-8 lg:bg-white lg:px-12 xl:px-20">
+        <div className="w-full max-w-[520px]">
+          <Link href="/" className="mb-10 inline-flex items-center gap-3 lg:hidden">
+            <span className="grid h-10 w-10 place-items-center rounded-xl bg-mipc-green-900 text-white">
+              <AcademicCapIcon className="h-5 w-5" />
+            </span>
+            <span className="font-display text-lg font-extrabold tracking-tight text-ink-950">MIPC Digital Campus</span>
           </Link>
-        </div>
-      </div>
 
-      <footer className="text-center text-xs text-ink-500 font-mono">
-        Muhabura Integrated Polytechnic College · Musanze, Northern Province, Rwanda
-      </footer>
+          <div>
+            <p className="mipc-eyebrow">Welcome back</p>
+            <h2 className="mt-4 font-display text-4xl font-extrabold tracking-[-0.045em] text-ink-950 sm:text-5xl">Sign in to continue</h2>
+            <p className="mt-4 text-sm leading-6 text-ink-600">
+              Enter your institutional email. We&apos;ll send you a secure one-time sign-in link.
+            </p>
+          </div>
+
+          <div className="mt-8">
+            {suspended ? (
+              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-signal-danger/15 bg-signal-danger-bg p-4 text-sm leading-6 text-signal-danger">
+                <AlertCircleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+                <span>This account is suspended. Contact the MIPC Academic Registrar if you believe this is an error.</span>
+              </div>
+            ) : null}
+
+            {status === 'sent' ? (
+              <div className="rounded-2xl border border-mipc-green-700/10 bg-mipc-green-50 p-6 sm:p-7">
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-white text-mipc-green-700 shadow-xs">
+                  <CheckCircleIcon className="h-6 w-6" />
+                </span>
+                <h3 className="mt-5 text-xl font-bold">Check your email</h3>
+                <p className="mt-2 text-sm leading-6 text-ink-600">
+                  We sent a secure sign-in link to <strong className="font-semibold text-ink-950">{email}</strong>. Open it on this device to continue.
+                </p>
+                <button type="button" onClick={() => setStatus('idle')} className="mt-5 text-sm font-semibold text-mipc-green-700 hover:text-mipc-green-900">
+                  Use a different email
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleMagicLink} className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="mipc-label">Institutional email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="name@mipc.ac.rw"
+                    className="mipc-input min-h-12"
+                  />
+                </div>
+                <button type="submit" disabled={status === 'sending'} className="mipc-button-primary min-h-12 w-full">
+                  {status === 'sending' ? 'Sending secure link…' : 'Continue with email'}
+                  {status !== 'sending' ? <ChevronRightIcon className="h-4 w-4" /> : null}
+                </button>
+                {status === 'error' ? (
+                  <div className="flex items-start gap-2.5 rounded-xl bg-signal-danger-bg p-3.5 text-sm leading-6 text-signal-danger">
+                    <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>We couldn&apos;t send the sign-in link. Check the email address and try again.</span>
+                  </div>
+                ) : null}
+              </form>
+            )}
+          </div>
+
+          {demoMode ? (
+            <div className="mt-9 border-t border-ink-900/[0.08] pt-7">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Preview the portal</p>
+                  <p className="mt-1 text-xs text-ink-500">Development demo access only</p>
+                </div>
+                <span className="rounded-full bg-mipc-green-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-mipc-green-700">Demo</span>
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                {demoProfiles.map(({ role, title, description, icon: Icon }) => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => handleDemoLogin(role)}
+                    className="group flex w-full items-center justify-between gap-4 rounded-2xl border border-ink-900/[0.08] bg-white p-3.5 text-left shadow-xs transition hover:border-mipc-green-700/20 hover:shadow-academic"
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-parchment-100 text-mipc-green-700">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink-950">{title}</span>
+                        <span className="mt-0.5 block truncate text-xs text-ink-500">{description}</span>
+                      </span>
+                    </span>
+                    <ChevronRightIcon className="h-4 w-4 shrink-0 text-ink-400 transition group-hover:translate-x-0.5 group-hover:text-mipc-green-700" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-9 flex flex-wrap items-center justify-between gap-4 border-t border-ink-900/[0.08] pt-6 text-xs text-ink-500">
+            <Link href="/" className="font-medium transition hover:text-ink-950">← Back to MIPC</Link>
+            <Link href="/privacy" className="font-medium transition hover:text-ink-950">Privacy & data rights</Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-parchment-50 flex items-center justify-center font-mono text-ink-500">Loading MIPC Portal...</div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-parchment-50 text-sm font-medium text-ink-500">Opening MIPC Digital Campus…</div>}>
       <LoginPageContent />
     </Suspense>
   );
