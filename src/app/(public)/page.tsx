@@ -90,7 +90,7 @@ export default async function HomePage() {
             <div className="mt-9 grid gap-3 border-t border-ink-900/[0.08] pt-6 sm:grid-cols-2">
               {['Online application & status tracking', 'Secure student and faculty workspace'].map((item) => (
                 <div key={item} className="flex items-center gap-2.5 text-sm font-medium text-ink-700">
-                  <CheckCircleIcon className="h-4.5 w-4.5 shrink-0 text-mipc-green-600" />
+                  <CheckCircleIcon className="h-[18px] w-[18px] shrink-0 text-mipc-green-600" />
                   <span>{item}</span>
                 </div>
               ))}
