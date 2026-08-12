@@ -12,10 +12,15 @@ export async function startOrResumeAttempt(
   testId: string,
   userId: string
 ): Promise<AttemptResult> {
-  // If Supabase client with valid URL is present, query Supabase
   const isSupabaseConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
     !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-project-ref')
+  );
+  const isDemoModeEnabled = Boolean(
+    !isSupabaseConfigured &&
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_MIPC_DEMO_MODE === 'true'
   );
 
   if (supabase && isSupabaseConfigured) {
@@ -41,7 +46,11 @@ export async function startOrResumeAttempt(
     }
   }
 
-  // Standalone / Local Data Store Logic
+  if (!isDemoModeEnabled) {
+    return { ok: false, error: 'The examination service is temporarily unavailable.', statusCode: 503 };
+  }
+
+  // Standalone / local development data store logic.
   const existing = dataStore.test_attempts.find(
     (a) => a.test_id === testId && a.student_id === userId
   );
@@ -103,7 +112,6 @@ export async function submitAndGradeAttempt(
   attempt.status = isOnTime ? 'submitted' : 'auto_submitted';
   attempt.submitted_at = now.toISOString();
 
-  // Save / upsert answers in data store
   let awardedPoints = 0;
   const test = dataStore.tests.find((item) => item.id === attempt.test_id);
   const testQuestions = dataStore.questions.filter((item) => item.test_id === attempt.test_id);
@@ -122,7 +130,6 @@ export async function submitAndGradeAttempt(
         pointsAwarded = isMatch ? Number(question.points) : 0;
         awardedPoints += pointsAwarded;
       } else {
-        // Essay question: remains un-graded until lecturer review
         pointsAwarded = null;
       }
     }
