@@ -7,6 +7,8 @@ const root = process.cwd();
 const migration = await readFile(join(root, 'supabase/migrations/0005_production_hardening.sql'), 'utf8');
 const rbacMigration = await readFile(join(root, 'supabase/migrations/0006_rbac_platform_completion.sql'), 'utf8');
 const rateLimitMigration = await readFile(join(root, 'supabase/migrations/0007_distributed_rate_limiting.sql'), 'utf8');
+const rpcIsolationMigration = await readFile(join(root, 'supabase/migrations/0009_isolate_privileged_rpcs.sql'), 'utf8');
+const rpcAnonRevocationMigration = await readFile(join(root, 'supabase/migrations/0010_revoke_anonymous_rpc_wrappers.sql'), 'utf8');
 
 test('assessment mutations are exposed only through server-owned RPCs', () => {
   assert.match(migration, /create or replace function start_test_attempt/);
@@ -46,6 +48,49 @@ test('privileged RBAC workflows are atomic and narrowly granted', () => {
   assert.match(rbacMigration, /create or replace function publish_course_material/);
   assert.match(rbacMigration, /create or replace function publish_global_announcement/);
   assert.match(rbacMigration, /for update/);
+});
+
+test('privileged authenticated RPC implementations are isolated from the Data API', () => {
+  for (const signature of [
+    'auth_role\\(\\)',
+    'is_enrolled\\(uuid\\)',
+    'teaches_course\\(uuid\\)',
+    'create_test_with_questions\\(jsonb\\)',
+    'get_student_questions\\(uuid\\)',
+    'grade_assignment\\(uuid, numeric, text\\)',
+    'save_test_answers\\(uuid, jsonb\\)',
+    'start_test_attempt\\(uuid\\)',
+    'submit_assignment\\(uuid, text\\)',
+    'submit_test_attempt\\(uuid, jsonb\\)'
+  ]) {
+    assert.match(rpcIsolationMigration, new RegExp(`alter function public\\.${signature} set schema private`));
+  }
+  assert.match(rpcIsolationMigration, /security invoker/);
+  assert.match(rpcIsolationMigration, /revoke all on schema private from PUBLIC, anon/);
+  assert.match(rpcIsolationMigration, /alter default privileges in schema public revoke execute on functions from PUBLIC, anon, authenticated/);
+  assert.match(rpcIsolationMigration, /alter policy "courses readable by authenticated users" on public\.courses to authenticated using \(true\)/);
+  assert.match(rpcIsolationMigration, /alter policy "public announcements readable by anyone" on public\.announcements to anon, authenticated/);
+});
+
+test('public RPC wrappers explicitly deny anonymous execution', () => {
+  for (const signature of [
+    'auth_role\\(\\)',
+    'is_enrolled\\(uuid\\)',
+    'teaches_course\\(uuid\\)',
+    'create_test_with_questions\\(jsonb\\)',
+    'get_student_questions\\(uuid\\)',
+    'grade_assignment\\(uuid, numeric, text\\)',
+    'save_test_answers\\(uuid, jsonb\\)',
+    'start_test_attempt\\(uuid\\)',
+    'submit_assignment\\(uuid, text\\)',
+    'submit_test_attempt\\(uuid, jsonb\\)'
+  ]) {
+    assert.match(
+      rpcAnonRevocationMigration,
+      new RegExp(`revoke execute on function public\\.${signature} from PUBLIC, anon`)
+    );
+  }
+  assert.match(rpcAnonRevocationMigration, /grant execute on function public\.auth_role\(\) to authenticated, service_role/);
 });
 
 test('exam and course access paths have supporting indexes', () => {
