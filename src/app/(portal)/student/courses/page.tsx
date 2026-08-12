@@ -1,20 +1,14 @@
 import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
-import {
-  BookOpenIcon,
-  ChevronRightIcon,
-  ClockIcon,
-  FileTextIcon,
-  AwardIcon
-} from '@/components/icons';
+import { BookOpenIcon, ChevronRightIcon } from '@/components/icons';
 
 export default async function StudentCoursesPage() {
-  const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((p) => p.role === 'student');
+  const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((profile) => profile.role === 'student');
   const studentId = currentStudent?.id ?? 'user-student-1';
 
-  let enrollments = dataStore.enrollments.filter((e) => e.student_id === studentId);
-  let courses = dataStore.courses.filter((c) => enrollments.some((e) => e.course_id === c.id));
+  let enrollments = dataStore.enrollments.filter((enrollment) => enrollment.student_id === studentId);
+  let courses = dataStore.courses.filter((course) => enrollments.some((enrollment) => enrollment.course_id === course.id));
   let tests = dataStore.tests;
   let assignments = dataStore.assignments;
 
@@ -22,10 +16,12 @@ export default async function StudentCoursesPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Student authentication required.');
+
     const { data: dbEnrollments, error: enrollmentError } = await supabase.from('enrollments').select('*').eq('student_id', user.id).eq('status', 'active');
     if (enrollmentError) throw new Error(enrollmentError.message);
     enrollments = (dbEnrollments ?? []) as any;
     const ids = enrollments.map((item: any) => item.course_id);
+
     if (ids.length) {
       const [courseResult, testResult, assignmentResult] = await Promise.all([
         supabase.from('courses').select('*').in('id', ids),
@@ -37,88 +33,52 @@ export default async function StudentCoursesPage() {
       courses = (courseResult.data ?? []) as any;
       tests = (testResult.data ?? []) as any;
       assignments = (assignmentResult.data ?? []) as any;
-    } else { courses = []; tests = []; assignments = []; }
+    } else {
+      courses = [];
+      tests = [];
+      assignments = [];
+    }
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-brass-600 font-bold block mb-1">
-            Academic year 2026/2027
-          </span>
-          <h1 className="font-display text-3xl font-bold text-ink-950">
-            Registered Modules & Syllabi
-          </h1>
-          <p className="mt-1 text-sm text-ink-700">
-            Academic modules currently accredited to your candidate record.
-          </p>
-        </div>
-      </div>
+  const totalCredits = courses.reduce((sum, course) => sum + Number(course.credits ?? 0), 0);
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  return (
+    <div className="space-y-7">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-3xl">
+          <p className="mipc-eyebrow">Academic year 2026/2027</p>
+          <h1 className="mipc-page-title">My courses</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-600">Access course materials, assessments, assignments and lecturer information for your active enrolments.</p>
+        </div>
+        <div className="flex gap-2"><span className="rounded-full bg-mipc-green-50 px-3 py-1.5 text-xs font-semibold text-mipc-green-700">{courses.length} courses</span><span className="rounded-full bg-parchment-200 px-3 py-1.5 text-xs font-semibold text-ink-600">{totalCredits} credits</span></div>
+      </header>
+
+      <div className="grid gap-4 md:grid-cols-2">
         {courses.map((course) => {
-          const courseTests = tests.filter((t) => t.course_id === course.id);
-          const courseAssignments = assignments.filter((a) => a.course_id === course.id);
+          const courseTests = tests.filter((test) => test.course_id === course.id);
+          const courseAssignments = assignments.filter((assignment) => assignment.course_id === course.id);
 
           return (
-            <div
-              key={course.id}
-              className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs hover:shadow-academic transition-shadow flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-mono font-bold text-brass-700 bg-brass-400/15 px-2.5 py-0.5 rounded">
-                    {course.code}
-                  </span>
-                  <span className="text-xs font-mono text-signal-ok bg-signal-ok-bg px-2 py-0.5 rounded font-semibold uppercase">
-                    Enrolled · Active
-                  </span>
-                </div>
-                <h2 className="font-display text-xl font-bold text-ink-950 mb-2">
-                  {course.title}
-                </h2>
-                <p className="text-sm text-ink-700 leading-relaxed">
-                  {course.description}
-                </p>
-
-                <div className="mt-6 grid grid-cols-3 gap-2 py-3 border-y border-parchment-200 text-center font-mono">
-                  <div>
-                    <span className="block text-ink-500 text-[10px] uppercase">Credits</span>
-                    <span className="font-bold text-ink-950 text-sm">{course.credits}</span>
-                  </div>
-                  <div>
-                    <span className="block text-ink-500 text-[10px] uppercase">Exams</span>
-                    <span className="font-bold text-ink-950 text-sm">{courseTests.length}</span>
-                  </div>
-                  <div>
-                    <span className="block text-ink-500 text-[10px] uppercase">Coursework</span>
-                    <span className="font-bold text-ink-950 text-sm">{courseAssignments.length}</span>
-                  </div>
-                </div>
+            <Link key={course.id} href={`/student/courses/${course.id}`} className="group flex min-h-[280px] flex-col rounded-3xl border border-ink-900/[0.08] bg-white p-6 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-mipc-green-700/20 hover:shadow-academic-lg">
+              <div className="flex items-start justify-between gap-4">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-mipc-green-50 text-mipc-green-700"><BookOpenIcon className="h-5 w-5" /></span>
+                <span className="rounded-full bg-signal-ok-bg px-2.5 py-1 text-[11px] font-semibold text-signal-ok">Active</span>
               </div>
-
-              <div className="mt-6 flex items-center justify-between">
-                <span className="text-xs font-mono text-ink-500">
-                  Lecturer: Dr. A. Turing
-                </span>
-                <Link
-                  href={`/student/courses/${course.id}`}
-                  className="rounded-lg bg-ink-900 px-4 py-2 text-xs font-medium text-white hover:bg-ink-800 transition-colors flex items-center gap-1.5"
-                >
-                  <span>Enter Course Room</span>
-                  <ChevronRightIcon className="w-3.5 h-3.5 text-brass-400" />
-                </Link>
+              <div className="mt-7">
+                <p className="text-xs font-semibold text-mipc-green-700">{course.code}</p>
+                <h2 className="mt-2 text-xl font-bold leading-snug tracking-[-0.025em] text-ink-950">{course.title}</h2>
+                <p className="mt-2 line-clamp-2 text-sm leading-6 text-ink-600">{course.description}</p>
               </div>
-            </div>
+              <div className="mt-auto grid grid-cols-3 gap-3 border-t border-ink-900/[0.07] pt-5 text-xs text-ink-500">
+                <div><strong className="block text-sm font-semibold text-ink-900">{course.credits}</strong><span>Credits</span></div>
+                <div><strong className="block text-sm font-semibold text-ink-900">{courseTests.length}</strong><span>Exams</span></div>
+                <div><strong className="block text-sm font-semibold text-ink-900">{courseAssignments.length}</strong><span>Coursework</span></div>
+              </div>
+              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mipc-green-700">Open course <ChevronRightIcon className="h-4 w-4 transition group-hover:translate-x-1" /></span>
+            </Link>
           );
         })}
-
-        {courses.length === 0 && (
-          <div className="col-span-2 bg-white rounded-xl border border-ink-900/10 p-12 text-center text-ink-500">
-            No active course enrollments recorded.
-          </div>
-        )}
+        {courses.length === 0 ? <div className="mipc-empty md:col-span-2">No active course enrolments are recorded.</div> : null}
       </div>
     </div>
   );
