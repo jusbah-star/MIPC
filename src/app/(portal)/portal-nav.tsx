@@ -28,38 +28,49 @@ interface NavItem {
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   student: [
     { href: '/student', label: 'Overview', icon: BarChartIcon },
-    { href: '/student/courses', label: 'My Courses', icon: BookOpenIcon },
+    { href: '/student/courses', label: 'My courses', icon: BookOpenIcon },
     { href: '/student/tests', label: 'Examinations', icon: ClockIcon, badge: 'Live' },
     { href: '/student/assignments', label: 'Coursework', icon: FileTextIcon },
-    { href: '/announcements', label: 'MIPC Bulletins', icon: MegaphoneIcon }
+    { href: '/announcements', label: 'Campus news', icon: MegaphoneIcon }
   ],
   lecturer: [
-    { href: '/lecturer', label: 'Faculty Overview', icon: BarChartIcon },
-    { href: '/lecturer/courses', label: 'My Courses & Rosters', icon: BookOpenIcon },
-    { href: '/lecturer/tests/new', label: 'Assessment Builder', icon: PlusIcon },
-    { href: '/lecturer/grading', label: 'Grading Center', icon: CheckCircleIcon, badge: 'Queue' },
-    { href: '/lecturer/announcements', label: 'Post Bulletin', icon: MegaphoneIcon }
+    { href: '/lecturer', label: 'Overview', icon: BarChartIcon },
+    { href: '/lecturer/courses', label: 'Courses & rosters', icon: BookOpenIcon },
+    { href: '/lecturer/tests/new', label: 'Assessment builder', icon: PlusIcon },
+    { href: '/lecturer/grading', label: 'Grading centre', icon: CheckCircleIcon, badge: 'Queue' },
+    { href: '/lecturer/announcements', label: 'Publish news', icon: MegaphoneIcon }
   ],
   admin: [
-    { href: '/admin', label: 'Administrative HQ', icon: ShieldCheckIcon },
-    { href: '/admin/applications', label: 'Admissions Pipeline', icon: AwardIcon, badge: 'Review' },
-    { href: '/admin/users', label: 'User Directory', icon: UsersIcon },
-    { href: '/admin/announcements', label: 'Global Announcements', icon: MegaphoneIcon },
-    { href: '/admin/courses', label: 'Curriculum & Cohorts', icon: BookOpenIcon },
-    { href: '/admin/audit', label: 'Security & Audit Log', icon: FileTextIcon }
+    { href: '/admin', label: 'Overview', icon: ShieldCheckIcon },
+    { href: '/admin/applications', label: 'Admissions', icon: AwardIcon, badge: 'Review' },
+    { href: '/admin/users', label: 'People & access', icon: UsersIcon },
+    { href: '/admin/announcements', label: 'Announcements', icon: MegaphoneIcon },
+    { href: '/admin/courses', label: 'Curriculum & cohorts', icon: BookOpenIcon },
+    { href: '/admin/audit', label: 'Audit & security', icon: FileTextIcon }
   ]
 };
+
+function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('');
+}
 
 export default function PortalNav({
   role,
   fullName,
   email,
-  isDemo = false
+  isDemo = false,
+  compact = false
 }: {
   role: UserRole;
   fullName: string;
   email?: string;
   isDemo?: boolean;
+  compact?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -73,105 +84,90 @@ export default function PortalNav({
   };
 
   return (
-    <div className="flex flex-col h-full justify-between">
-      <div>
-        {/* Institutional Branding */}
-        <div className="px-3 py-4 mb-3 border-b border-ink-900/10">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-ink-900 to-ink-800 border border-mipc-green-500/40 flex items-center justify-center text-mipc-green-400 shadow-sm group-hover:border-mipc-green-400 transition-colors">
-              <AcademicCapIcon className="w-6 h-6" />
-            </div>
-            <div>
-              <span className="block font-display font-bold text-ink-950 text-base leading-tight tracking-tight">
-                MIPC Portal
-              </span>
-              <span className="block font-mono text-[10px] tracking-wider uppercase text-mipc-green-700 font-bold">
-                Musanze · Rwanda
-              </span>
-            </div>
-          </Link>
-        </div>
+    <div className="flex h-full flex-col">
+      <Link href="/" className={`group flex items-center gap-3 rounded-xl px-2 py-2 ${compact ? 'mb-4' : 'mb-6'}`}>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-mipc-green-900 shadow-academic transition group-hover:-translate-y-px">
+          <AcademicCapIcon className="h-5 w-5" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-display text-base font-extrabold leading-tight tracking-[-0.025em] text-white">MIPC</span>
+          <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.13em] text-white/45">Digital Campus</span>
+        </span>
+      </Link>
 
-        {/* User Card */}
-        <div className="px-3 py-3 mx-1 mb-4 rounded-lg bg-parchment-100/70 border border-parchment-200">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-mipc-green-800">
-              {role}
-            </span>
-            <span className="inline-block w-2 h-2 rounded-full bg-signal-ok animate-pulse" />
+      <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.06] p-3.5">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white/10 text-xs font-bold text-white">
+            {initials(fullName)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-white">{fullName}</p>
+            <p className="mt-0.5 truncate text-xs text-white/45">{email || `${role}@mipc.ac.rw`}</p>
           </div>
-          <p className="font-medium text-sm text-ink-950 truncate">{fullName}</p>
-          {email && <p className="text-xs text-ink-700 truncate font-mono">{email}</p>}
         </div>
-
-        {/* Navigation Links */}
-        <nav className="space-y-1 px-1">
-          <div className="px-2 py-1 text-[11px] font-mono uppercase tracking-wider text-ink-500 font-medium">
-            Navigation
-          </div>
-          {links.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.href !== `/${role}` && pathname.startsWith(item.href));
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-ink-900 text-white shadow-sm'
-                    : 'text-ink-800 hover:bg-parchment-100 hover:text-ink-950'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? 'text-mipc-green-400' : 'text-ink-500'
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span
-                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      isActive
-                        ? 'bg-mipc-green-500/20 text-mipc-green-300'
-                        : 'bg-parchment-200 text-ink-700'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="mt-3 flex items-center justify-between border-t border-white/[0.08] pt-3">
+          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold capitalize text-white/70">{role}</span>
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-mipc-green-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-mipc-green-300" /> Active
+          </span>
+        </div>
       </div>
 
-      {/* Role Switcher for Demo / Testing */}
-      {isDemo && <div className="pt-4 border-t border-ink-900/10 px-1 mt-6">
-        <div className="px-2 py-1 mb-2 text-[10px] font-mono uppercase tracking-wider text-ink-500 font-semibold flex items-center justify-between">
-          <span>Quick Switch Role</span>
-          <span className="text-mipc-green-700 font-bold">MIPC Demo</span>
-        </div>
-        <div className="grid grid-cols-3 gap-1 mb-4">
-          {(['student', 'lecturer', 'admin'] as UserRole[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => handleRoleSwitch(r)}
-              className={`text-xs py-1.5 px-2 rounded font-mono font-medium capitalize transition-colors ${
-                role === r
-                  ? 'bg-mipc-green-700 text-white shadow-xs'
-                  : 'bg-parchment-100 hover:bg-parchment-200 text-ink-800'
+      <nav aria-label={`${role} portal navigation`} className="space-y-1">
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">Workspace</p>
+        {links.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href || (item.href !== `/${role}` && pathname.startsWith(item.href));
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isActive ? 'page' : undefined}
+              className={`group flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition duration-200 ${
+                isActive
+                  ? 'bg-white text-ink-950 shadow-academic'
+                  : 'text-white/65 hover:bg-white/[0.07] hover:text-white'
               }`}
             >
-              {r}
-            </button>
-          ))}
+              <span className="flex min-w-0 items-center gap-3">
+                <Icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? 'text-mipc-green-700' : 'text-white/40 group-hover:text-white/70'}`} />
+                <span className="truncate">{item.label}</span>
+              </span>
+              {item.badge ? (
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isActive ? 'bg-mipc-green-50 text-mipc-green-700' : 'bg-white/10 text-white/55'}`}>
+                  {item.badge}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {isDemo ? (
+        <div className="mt-auto pt-8">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">Demo role</span>
+              <span className="rounded-full bg-mipc-green-400/15 px-2 py-0.5 text-[10px] font-semibold text-mipc-green-300">Local only</span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-1.5">
+              {(['student', 'lecturer', 'admin'] as UserRole[]).map((itemRole) => (
+                <button
+                  key={itemRole}
+                  type="button"
+                  onClick={() => handleRoleSwitch(itemRole)}
+                  className={`rounded-lg px-2 py-2 text-[11px] font-semibold capitalize transition ${
+                    role === itemRole ? 'bg-white text-ink-950' : 'bg-white/[0.06] text-white/55 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {itemRole}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>}
+      ) : null}
     </div>
   );
 }
