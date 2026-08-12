@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
-  AcademicCapIcon,
   BookOpenIcon,
   ShieldCheckIcon,
   UsersIcon,
@@ -62,10 +62,10 @@ function LoginPageContent() {
     <main className="min-h-screen bg-parchment-50 flex flex-col justify-between py-12 px-6">
       <div className="max-w-md w-full mx-auto my-auto">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-3 group mb-4">
-            <div className="w-12 h-12 rounded-xl bg-ink-900 border border-mipc-green-500/40 flex items-center justify-center text-mipc-green-400 shadow-academic">
-              <AcademicCapIcon className="w-7 h-7" />
-            </div>
+          <Link href="/" className="inline-flex items-center justify-center group mb-4" aria-label="MIPC home">
+            <span className="relative h-20 w-20 overflow-hidden rounded-full bg-white shadow-academic ring-1 ring-ink-900/10 transition-transform group-hover:scale-[1.02]">
+              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="80px" className="object-cover" priority />
+            </span>
           </Link>
           <h1 className="font-display text-3xl font-bold text-ink-950">
             Institutional Sign In
