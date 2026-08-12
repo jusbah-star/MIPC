@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  AcademicCapIcon,
   BookOpenIcon,
   ClockIcon,
   ShieldCheckIcon,
@@ -78,8 +78,8 @@ export default function PortalNav({
         {/* Institutional Branding */}
         <div className="px-3 py-4 mb-3 border-b border-ink-900/10">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-ink-900 to-ink-800 border border-mipc-green-500/40 flex items-center justify-center text-mipc-green-400 shadow-sm group-hover:border-mipc-green-400 transition-colors">
-              <AcademicCapIcon className="w-6 h-6" />
+            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-ink-900/10 transition group-hover:ring-mipc-green-400/70">
+              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="44px" className="object-cover" priority />
             </div>
             <div>
               <span className="block font-display font-bold text-ink-950 text-base leading-tight tracking-tight">
