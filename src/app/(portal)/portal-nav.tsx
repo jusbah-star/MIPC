@@ -79,7 +79,7 @@ export default function PortalNav({
         <div className="px-3 py-4 mb-3 border-b border-ink-900/10">
           <Link href="/" className="flex items-center gap-3 group">
             <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-ink-900/10 transition group-hover:ring-mipc-green-400/70">
-              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="44px" className="object-cover" priority />
+              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="44px" className="object-cover" priority unoptimized />
             </div>
             <div>
               <span className="block font-display font-bold text-ink-950 text-base leading-tight tracking-tight">

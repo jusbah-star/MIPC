@@ -64,7 +64,7 @@ function LoginPageContent() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center justify-center group mb-4" aria-label="MIPC home">
             <span className="relative h-20 w-20 overflow-hidden rounded-full bg-white shadow-academic ring-1 ring-ink-900/10 transition-transform group-hover:scale-[1.02]">
-              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="80px" className="object-cover" priority />
+              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="80px" className="object-cover" priority unoptimized />
             </span>
           </Link>
           <h1 className="font-display text-3xl font-bold text-ink-950">

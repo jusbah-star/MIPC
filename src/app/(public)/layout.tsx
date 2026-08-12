@@ -15,7 +15,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-3 sm:px-8">
           <Link href="/" className="flex min-h-11 min-w-0 items-center gap-3 rounded-lg">
             <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-academic ring-1 ring-ink-900/10">
-              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="48px" className="object-cover" priority />
+              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="48px" className="object-cover" priority unoptimized />
             </span>
             <span className="min-w-0"><span className="block font-display text-lg font-bold leading-none">MIPC</span><span className="mt-1 hidden text-[10px] font-semibold uppercase tracking-[0.14em] text-mipc-green-700 sm:block">Muhabura Integrated Polytechnic College</span><span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-mipc-green-700 sm:hidden">Musanze, Rwanda</span></span>
           </Link>
