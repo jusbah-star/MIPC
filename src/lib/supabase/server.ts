@@ -15,6 +15,18 @@ export function isSupabaseConfigured() {
   );
 }
 
+export function isDemoModeEnabled() {
+  return Boolean(
+    !isSupabaseConfigured() &&
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_MIPC_DEMO_MODE === 'true'
+  );
+}
+
+export function isBackendAvailable() {
+  return isSupabaseConfigured() || isDemoModeEnabled();
+}
+
 export async function createClient() {
   const cookieStore = await cookies();
 
