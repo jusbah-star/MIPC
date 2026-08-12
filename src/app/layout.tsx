@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   title: { default: 'MIPC Digital Campus', template: '%s | MIPC' },
   description: 'The secure digital campus for Muhabura Integrated Polytechnic College in Musanze, Rwanda.',
   metadataBase: new URL('https://mipc.ac.rw'),
+  icons: {
+    icon: '/mipc-logo.png',
+    shortcut: '/mipc-logo.png',
+    apple: '/mipc-logo.png'
+  },
   robots: { index: true, follow: true }
 };
 
