@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -43,6 +42,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   admin: [
     { href: '/admin', label: 'Administrative HQ', icon: ShieldCheckIcon },
     { href: '/admin/applications', label: 'Admissions Pipeline', icon: AwardIcon, badge: 'Review' },
+    { href: '/admin/students', label: 'Student Registry', icon: UsersIcon },
     { href: '/admin/users', label: 'User Directory', icon: UsersIcon },
     { href: '/admin/announcements', label: 'Global Announcements', icon: MegaphoneIcon },
     { href: '/admin/courses', label: 'Curriculum & Cohorts', icon: BookOpenIcon },
@@ -75,101 +75,49 @@ export default function PortalNav({
   return (
     <div className="flex flex-col h-full justify-between">
       <div>
-        {/* Institutional Branding */}
         <div className="px-3 py-4 mb-3 border-b border-ink-900/10">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-ink-900/10 transition group-hover:ring-mipc-green-400/70">
-              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="44px" className="object-cover" priority unoptimized />
+            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-ink-900/10 transition group-hover:ring-mipc-green-400/70">
+              <img src="/api/mipc-logo" alt="Muhabura Integrated Polytechnic College crest" className="h-full w-full object-contain p-1" />
             </div>
             <div>
-              <span className="block font-display font-bold text-ink-950 text-base leading-tight tracking-tight">
-                MIPC Portal
-              </span>
-              <span className="block font-mono text-[10px] tracking-wider uppercase text-mipc-green-700 font-bold">
-                Musanze · Rwanda
-              </span>
+              <span className="block font-display font-bold text-ink-950 text-base leading-tight tracking-tight">MIPC Portal</span>
+              <span className="block font-mono text-[10px] tracking-wider uppercase text-mipc-green-700 font-bold">Musanze · Rwanda</span>
             </div>
           </Link>
         </div>
 
-        {/* User Card */}
         <div className="px-3 py-3 mx-1 mb-4 rounded-lg bg-parchment-100/70 border border-parchment-200">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-mipc-green-800">
-              {role}
-            </span>
+            <span className="text-[11px] font-mono uppercase tracking-wider font-bold text-mipc-green-800">{role}</span>
             <span className="inline-block w-2 h-2 rounded-full bg-signal-ok animate-pulse" />
           </div>
           <p className="font-medium text-sm text-ink-950 truncate">{fullName}</p>
           {email && <p className="text-xs text-ink-700 truncate font-mono">{email}</p>}
         </div>
 
-        {/* Navigation Links */}
         <nav className="space-y-1 px-1">
-          <div className="px-2 py-1 text-[11px] font-mono uppercase tracking-wider text-ink-500 font-medium">
-            Navigation
-          </div>
+          <div className="px-2 py-1 text-[11px] font-mono uppercase tracking-wider text-ink-500 font-medium">Navigation</div>
           {links.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              pathname === item.href ||
-              (item.href !== `/${role}` && pathname.startsWith(item.href));
-
+            const isActive = pathname === item.href || (item.href !== `/${role}` && pathname.startsWith(item.href));
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-ink-900 text-white shadow-sm'
-                    : 'text-ink-800 hover:bg-parchment-100 hover:text-ink-950'
-                }`}
-              >
+              <Link key={item.href} href={item.href} className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive ? 'bg-ink-900 text-white shadow-sm' : 'text-ink-800 hover:bg-parchment-100 hover:text-ink-950'}`}>
                 <div className="flex items-center gap-2.5">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? 'text-mipc-green-400' : 'text-ink-500'
-                    }`}
-                  />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-mipc-green-400' : 'text-ink-500'}`} />
                   <span>{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span
-                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                      isActive
-                        ? 'bg-mipc-green-500/20 text-mipc-green-300'
-                        : 'bg-parchment-200 text-ink-700'
-                    }`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
+                {item.badge && <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${isActive ? 'bg-mipc-green-500/20 text-mipc-green-300' : 'bg-parchment-200 text-ink-700'}`}>{item.badge}</span>}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      {/* Role Switcher for Demo / Testing */}
       {isDemo && <div className="pt-4 border-t border-ink-900/10 px-1 mt-6">
-        <div className="px-2 py-1 mb-2 text-[10px] font-mono uppercase tracking-wider text-ink-500 font-semibold flex items-center justify-between">
-          <span>Quick Switch Role</span>
-          <span className="text-mipc-green-700 font-bold">MIPC Demo</span>
-        </div>
+        <div className="px-2 py-1 mb-2 text-[10px] font-mono uppercase tracking-wider text-ink-500 font-semibold flex items-center justify-between"><span>Quick Switch Role</span><span className="text-mipc-green-700 font-bold">MIPC Demo</span></div>
         <div className="grid grid-cols-3 gap-1 mb-4">
-          {(['student', 'lecturer', 'admin'] as UserRole[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => handleRoleSwitch(r)}
-              className={`text-xs py-1.5 px-2 rounded font-mono font-medium capitalize transition-colors ${
-                role === r
-                  ? 'bg-mipc-green-700 text-white shadow-xs'
-                  : 'bg-parchment-100 hover:bg-parchment-200 text-ink-800'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
+          {(['student', 'lecturer', 'admin'] as UserRole[]).map((r) => <button key={r} onClick={() => handleRoleSwitch(r)} className={`text-xs py-1.5 px-2 rounded font-mono font-medium capitalize transition-colors ${role === r ? 'bg-mipc-green-700 text-white shadow-xs' : 'bg-parchment-100 hover:bg-parchment-200 text-ink-800'}`}>{r}</button>)}
         </div>
       </div>}
     </div>
