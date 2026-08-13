@@ -1,1 +1,0 @@
-The live database allows null registration numbers for staff and administrators while students must retain a registration number. This note accompanies migration 0015.
