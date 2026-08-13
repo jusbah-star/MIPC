@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { PortalLogin } from './portal-login';
+import { PortalLinkLogin } from './portal-link-login';
 
 export default function LoginPage() {
   return (
     <div className="relative">
       <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f4f7f5] text-sm text-ink-500">Loading campus portal…</div>}>
-        <PortalLogin />
+        <PortalLinkLogin />
       </Suspense>
       <Link
         href="/register/admin"
