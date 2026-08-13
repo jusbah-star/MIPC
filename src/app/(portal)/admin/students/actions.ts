@@ -38,6 +38,15 @@ async function validateAcademicAssignment(admin: ReturnType<typeof createAdminCl
   }
 }
 
+async function syncCohortCourses(admin: ReturnType<typeof createAdminClient>, studentId: string, reviewerId: string, cohortId: string | null, status: string) {
+  if (!cohortId || status !== 'active') return;
+  const { error } = await (admin as any).rpc('sync_student_cohort_enrollments', {
+    target_student_id: studentId,
+    reviewer_id: reviewerId
+  });
+  if (error) throw new Error(error.message);
+}
+
 export async function createStudent(formData: FormData) {
   const actor = await requireAdmin();
   const admin = createAdminClient();
@@ -80,6 +89,8 @@ export async function createStudent(formData: FormData) {
     throw new Error(profileError.message);
   }
 
+  await syncCohortCourses(admin, authData.user.id, actor.id, cohortId, 'active');
+
   await (admin as any).from('audit_log').insert({
     actor_id: actor.id,
     action: 'student.create',
@@ -89,6 +100,8 @@ export async function createStudent(formData: FormData) {
   });
 
   revalidatePath('/admin/students');
+  revalidatePath('/admin/courses');
+  revalidatePath('/student/courses');
   revalidatePath('/admin');
 }
 
@@ -132,6 +145,8 @@ export async function updateStudent(formData: FormData) {
   }).eq('id', studentId);
   if (updateError) throw new Error(updateError.message);
 
+  await syncCohortCourses(admin, studentId, actor.id, cohortId, accountStatus);
+
   await (admin as any).from('audit_log').insert({
     actor_id: actor.id,
     action: 'student.registry.update',
@@ -143,5 +158,7 @@ export async function updateStudent(formData: FormData) {
 
   revalidatePath('/admin/students');
   revalidatePath('/admin/users');
+  revalidatePath('/admin/courses');
+  revalidatePath('/student/courses');
   revalidatePath('/admin/audit');
 }
