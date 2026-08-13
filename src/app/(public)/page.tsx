@@ -11,11 +11,11 @@ const programmes = [
 ];
 
 const photos = {
-  hero: 'https://mipc.ac.rw/wp-content/uploads/elementor/thumbs/5Q2A8774-scaled-qfzekqx3vew9e5jr1c641sciixqzvx5jos3rkxugf4.jpg',
-  campus: 'https://www.kigalitoday.com/IMG/jpg/iyi_ni_yo_nyubako_yuzuye_itwaye_miliyoni_500_izatahwa_ubwo_hazaba_hanatangwa_impamyabumenyi.jpg',
-  graduation: 'https://karibumedia.rw/wp-content/uploads/2025/09/WhatsApp-Image-2025-09-14-at-11.16.37.jpeg',
-  construction: 'https://karibumedia.rw/wp-content/uploads/2025/09/WhatsApp-Image-2025-09-14-at-11.16.37-1.jpeg',
-  community: 'https://mamaurwagasabo.rw/IMG/jpg/img-20241206-wa0033.jpg'
+  hero: '/campus-front.webp',
+  campus: '/campus-side.webp',
+  graduation: '/api/campus-photo?name=graduation',
+  construction: '/api/campus-photo?name=construction',
+  community: '/leadership-community.webp'
 };
 
 export default async function HomePage() {
@@ -28,7 +28,7 @@ export default async function HomePage() {
   return (
     <>
       <section className="relative isolate overflow-hidden bg-mipc-navy-950 text-white">
-        <img src={photos.hero} alt="MIPC campus in Musanze" fetchPriority="high" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" />
+        <img src={photos.hero} alt="MIPC campus in Musanze" className="absolute inset-0 h-full w-full object-cover object-center" fetchPriority="high" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,16,34,.98)_0%,rgba(6,16,34,.9)_42%,rgba(29,73,50,.64)_72%,rgba(6,16,34,.16)_100%)]" />
         <div className="relative mx-auto grid min-h-[620px] max-w-7xl items-center gap-8 px-5 py-14 sm:min-h-[680px] sm:px-8 sm:py-16 lg:grid-cols-[1.05fr_.95fr] lg:min-h-[700px] lg:py-24">
           <div className="max-w-3xl">
@@ -57,7 +57,7 @@ export default async function HomePage() {
       <section className="bg-[#f7f8f5]">
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:py-24">
           <div><p className="mipc-eyebrow !text-mipc-green-700">Our campus</p><h2 className="mt-3 text-4xl font-bold tracking-tight text-mipc-navy-950">A place built for learning, practice and community.</h2><p className="mt-5 max-w-xl leading-7 text-ink-700">Set in Musanze, the MIPC campus brings classrooms, technical learning and student life together in one environment. It is a place to gain useful skills, meet people from different backgrounds and grow through experience.</p><a href="https://mipc.ac.rw/about" target="_blank" rel="noreferrer" className="mipc-button-secondary mt-7 !border-mipc-navy-900/15">Discover MIPC</a></div>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-navy-950 shadow-academic-lg sm:aspect-[16/10]"><img src={photos.campus} alt="MIPC campus and student life" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/20 via-transparent to-transparent" /></div>
+          <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-navy-950 shadow-academic-lg sm:aspect-[16/10]"><img src={photos.campus} alt="MIPC campus and student life" className="absolute inset-0 h-full w-full object-cover object-center" loading="lazy" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/20 via-transparent to-transparent" /></div>
         </div>
       </section>
 
@@ -65,10 +65,10 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
           <div className="max-w-3xl"><p className="mipc-eyebrow !text-mipc-green-700">Life at MIPC</p><h2 className="mt-3 text-4xl font-bold tracking-tight text-mipc-navy-950 sm:text-5xl">More than a classroom.</h2><p className="mt-4 text-base leading-7 text-ink-600">Study is only one part of the MIPC experience. Milestones, programme communities and leadership activities all shape the people students become.</p></div>
           <div className="mt-10 grid gap-5 lg:grid-cols-12">
-            <article className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-navy-950 sm:aspect-[16/10] lg:col-span-7 lg:aspect-auto lg:min-h-[500px]"><img src={photos.graduation} alt="MIPC graduates celebrating on campus" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/90 via-mipc-navy-950/10 to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-300">Achievement</p><h3 className="mt-2 max-w-xl text-2xl font-bold sm:text-3xl">Celebrating the work behind every graduation day.</h3></div></article>
+            <article className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-navy-950 sm:aspect-[16/10] lg:col-span-7 lg:aspect-auto lg:min-h-[500px]"><img src={photos.graduation} alt="MIPC graduates celebrating on campus" className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" loading="lazy" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/90 via-mipc-navy-950/10 to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 text-white sm:p-8"><p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-300">Achievement</p><h3 className="mt-2 max-w-xl text-2xl font-bold sm:text-3xl">Celebrating the work behind every graduation day.</h3></div></article>
             <div className="grid gap-5 sm:grid-cols-2 lg:col-span-5 lg:grid-cols-1">
-              <article className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-green-900 sm:aspect-[16/10] lg:aspect-auto lg:min-h-[240px]"><img src={photos.construction} alt="Construction and Building Technology graduates at MIPC" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/90 via-transparent to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-300">Programme pride</p><h3 className="mt-2 text-xl font-bold">Skills that become real careers.</h3></div></article>
-              <article className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-navy-950 sm:aspect-[16/10] lg:aspect-auto lg:min-h-[240px]"><img src={photos.community} alt="MIPC leadership and community gathering" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/90 via-transparent to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-300">Leadership & community</p><h3 className="mt-2 text-xl font-bold">Growing confidence beyond the lecture room.</h3></div></article>
+              <article className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-green-900 sm:aspect-[16/10] lg:aspect-auto lg:min-h-[240px]"><img src={photos.construction} alt="Construction and Building Technology graduates at MIPC" className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" loading="lazy" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/90 via-transparent to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-300">Programme pride</p><h3 className="mt-2 text-xl font-bold">Skills that become real careers.</h3></div></article>
+              <article className="group relative aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-mipc-navy-950 sm:aspect-[16/10] lg:aspect-auto lg:min-h-[240px]"><img src={photos.community} alt="MIPC leadership and community gathering" className="absolute inset-0 h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.02]" loading="lazy" /><div className="absolute inset-0 bg-gradient-to-t from-mipc-navy-950/90 via-transparent to-transparent" /><div className="absolute inset-x-0 bottom-0 p-6 text-white"><p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-300">Leadership & community</p><h3 className="mt-2 text-xl font-bold">Growing confidence beyond the lecture room.</h3></div></article>
             </div>
           </div>
         </div>
