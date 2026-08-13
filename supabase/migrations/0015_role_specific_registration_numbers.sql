@@ -1,0 +1,1 @@
+-- Role-specific registration number constraint migration.
