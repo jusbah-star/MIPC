@@ -20,6 +20,15 @@ const contentSecurityPolicy = [
 ].join('; ');
 
 const nextConfig = {
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'mipc.ac.rw' },
+      { protocol: 'https', hostname: 'www.kigalitoday.com' },
+      { protocol: 'https', hostname: 'karibumedia.rw' },
+      { protocol: 'https', hostname: 'mamaurwagasabo.rw' }
+    ],
+    formats: ['image/avif', 'image/webp']
+  },
   experimental: {
     serverActions: { bodySizeLimit: '128kb' }
   },
