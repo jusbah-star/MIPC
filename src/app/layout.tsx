@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Lora, Inter, IBM_Plex_Mono } from 'next/font/google';
+import { AuthLinkCompleter } from '@/components/auth-link-completer';
 import './globals.css';
 
 const lora = Lora({ subsets: ['latin'], variable: '--font-serif', display: 'swap', weight: ['400', '500', '600', '700'] });
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${lora.variable} ${inter.variable} ${plexMono.variable}`} suppressHydrationWarning>
       <body className="min-h-screen bg-parchment-50 font-body text-ink-950 antialiased selection:bg-brass-300 selection:text-ink-950">
         <a href="#main-content" className="sr-only z-50 rounded-lg bg-white px-4 py-3 font-semibold text-ink-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to main content</a>
+        <AuthLinkCompleter />
         {children}
       </body>
     </html>
