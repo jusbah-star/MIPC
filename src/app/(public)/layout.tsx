@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronRightIcon } from '@/components/icons';
 
@@ -15,8 +14,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <header className="sticky top-0 z-30 border-b border-mipc-navy-900/10 bg-white/95 backdrop-blur-xl">
         <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/" className="flex min-w-0 items-center gap-3 rounded-lg">
-            <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-white ring-1 ring-mipc-navy-900/10">
-              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="56px" className="object-contain p-0.5" priority unoptimized />
+            <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-white ring-1 ring-mipc-navy-900/10">
+              <img src="/api/mipc-logo" alt="Muhabura Integrated Polytechnic College crest" width="56" height="56" className="h-full w-full object-contain p-1" fetchPriority="high" />
             </span>
             <span className="min-w-0">
               <span className="block font-display text-2xl font-bold leading-none text-mipc-navy-950">MIPC</span>
