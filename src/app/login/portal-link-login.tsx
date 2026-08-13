@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { ShieldCheckIcon } from '@/components/icons';
+import { GENERIC_SIGN_IN_MESSAGE } from '@/lib/auth-policy';
 
 type PortalRole = 'student' | 'lecturer' | 'admin';
 
@@ -41,14 +42,14 @@ export function PortalLinkLogin() {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/request-code', {
+      const response = await fetch('/api/auth/send-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ portal, email, ...(portal === 'student' ? { registrationNumber } : {}) })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(payload.error || 'We could not send your sign-in link.');
+        setError(payload.error || 'We could not process this sign-in request.');
         return;
       }
       setSent(true);
@@ -73,7 +74,7 @@ export function PortalLinkLogin() {
         <div className="relative z-10 max-w-xl pb-8">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-mipc-green-300">Secure campus access</p>
           <h1 className="mt-5 font-display text-5xl font-bold leading-[1.03] xl:text-6xl">The right portal,<br />one secure link away.</h1>
-          <p className="mt-6 max-w-lg text-lg leading-8 text-white/72">Students verify their registration number and email. Staff and administrators use their approved MIPC email. The server checks the stored role before any sign-in link is sent.</p>
+          <p className="mt-6 max-w-lg text-lg leading-8 text-white/72">Students verify their registration number and email. Staff and administrators use their approved MIPC email. The stored role and active account status are checked on the server before access is allowed.</p>
         </div>
         <p className="relative z-10 text-xs text-white/45">Muhabura Integrated Polytechnic College · Musanze, Rwanda</p>
       </section>
@@ -101,13 +102,16 @@ export function PortalLinkLogin() {
               </form>
             ) : (
               <div className="mt-7 space-y-5">
-                <div className="rounded-xl bg-mipc-green-50 p-4 text-sm leading-6 text-mipc-green-900">We sent a one-time sign-in link to <strong>{email}</strong>. Open the email and tap the confirmation/sign-in link. MIPC will then open your <strong>{selected.label}</strong> portal automatically.</div>
+                <div className="rounded-xl bg-mipc-green-50 p-4 text-sm leading-6 text-mipc-green-900">
+                  <strong>Request received.</strong><br />
+                  {GENERIC_SIGN_IN_MESSAGE} If a message arrives at <strong>{email}</strong>, open its one-time link to continue to the <strong>{selected.label}</strong> portal.
+                </div>
                 <button type="button" onClick={() => setSent(false)} className="mipc-button-secondary w-full">Change sign-in details</button>
-                <button type="button" onClick={() => void sendLink()} disabled={busy} className="w-full text-sm font-bold text-mipc-green-800">{busy ? 'Sending…' : 'Send another link'}</button>
+                <button type="button" onClick={() => void sendLink()} disabled={busy} className="w-full text-sm font-bold text-mipc-green-800">{busy ? 'Sending…' : 'Send another request'}</button>
               </div>
             )}
 
-            {portal === 'admin' && !sent && <p className="mt-5 text-center text-xs text-ink-500">First time administrator? <Link href="/register/admin" className="font-bold text-mipc-green-800">Register the approved admin account</Link></p>}
+            {portal === 'admin' && !sent && <p className="mt-5 text-center text-xs text-ink-500">Have an administrator invitation? <Link href="/register/admin" className="font-bold text-mipc-green-800">Complete administrator registration</Link></p>}
             {error && <p className="mt-5 rounded-xl bg-signal-danger-bg p-3 text-sm text-signal-danger">{error}</p>}
           </div>
           <p className="mt-6 text-center text-xs text-ink-500"><Link href="/" className="font-semibold hover:text-mipc-navy-950">← Return to MIPC website</Link></p>
