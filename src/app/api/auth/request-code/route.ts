@@ -3,6 +3,16 @@ import { createAdminClient, createClient, isSupabaseConfigured } from '@/lib/sup
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 
+type PortalRole = 'student' | 'lecturer' | 'admin';
+
+function requestedPortal(value: unknown): PortalRole {
+  const portal = requiredText(value, 'Portal', 20, 5).trim().toLowerCase();
+  if (portal !== 'student' && portal !== 'lecturer' && portal !== 'admin') {
+    throw new ValidationError('Choose a valid MIPC portal.');
+  }
+  return portal;
+}
+
 export async function POST(request: Request) {
   try {
     if (!isSupabaseConfigured()) {
@@ -13,27 +23,55 @@ export async function POST(request: Request) {
     await enforceRateLimit(`portal-code:${clientAddress(request)}`, 5, 15 * 60 * 1000);
 
     const body = await request.json();
-    const registrationNumber = requiredText(body.registrationNumber, 'Registration number', 40, 4).trim().toUpperCase();
+    const portal = requestedPortal(body.portal);
     const email = emailAddress(body.email).trim().toLowerCase();
-
     const admin = createAdminClient() as any;
-    const { data: profile, error: lookupError } = await admin
-      .from('profiles')
-      .select('id, email, account_status, registration_number')
-      .eq('registration_number', registrationNumber)
-      .maybeSingle();
 
-    if (lookupError) {
-      console.error('Portal identity lookup failed', { code: lookupError.code });
-      return NextResponse.json({ error: 'Campus sign-in is temporarily unavailable.' }, { status: 503 });
+    let profile: any = null;
+    let lookupError: any = null;
+
+    if (portal === 'student') {
+      const registrationNumber = requiredText(body.registrationNumber, 'Registration number', 40, 4).trim().toUpperCase();
+      const result = await admin
+        .from('profiles')
+        .select('id, email, account_status, registration_number, role')
+        .eq('registration_number', registrationNumber)
+        .eq('role', 'student')
+        .maybeSingle();
+      profile = result.data;
+      lookupError = result.error;
+
+      const matchesStudent = profile &&
+        String(profile.email || '').trim().toLowerCase() === email &&
+        profile.account_status === 'active' &&
+        profile.role === 'student';
+
+      if (!lookupError && !matchesStudent) {
+        return NextResponse.json({ error: 'Those details do not match an active MIPC student account.' }, { status: 400 });
+      }
+    } else {
+      const result = await admin
+        .from('profiles')
+        .select('id, email, account_status, role')
+        .eq('email', email)
+        .eq('role', portal)
+        .maybeSingle();
+      profile = result.data;
+      lookupError = result.error;
+
+      const matchesStaff = profile &&
+        String(profile.email || '').trim().toLowerCase() === email &&
+        profile.account_status === 'active' &&
+        profile.role === portal;
+
+      if (!lookupError && !matchesStaff) {
+        return NextResponse.json({ error: 'That email does not match an active account for the selected MIPC portal.' }, { status: 400 });
+      }
     }
 
-    const matches = profile &&
-      String(profile.email || '').trim().toLowerCase() === email &&
-      profile.account_status === 'active';
-
-    if (!matches) {
-      return NextResponse.json({ error: 'Registration number and email do not match an active MIPC account.' }, { status: 400 });
+    if (lookupError) {
+      console.error('Portal identity lookup failed', { code: lookupError.code, portal });
+      return NextResponse.json({ error: 'Campus sign-in is temporarily unavailable.' }, { status: 503 });
     }
 
     const supabase = await createClient();
@@ -43,7 +81,7 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.error('Portal OTP dispatch failed', { message: error.message });
+      console.error('Portal OTP dispatch failed', { message: error.message, portal });
       return NextResponse.json({ error: 'We could not send the login code. Please try again.' }, { status: 503 });
     }
 
