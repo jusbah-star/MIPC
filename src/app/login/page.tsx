@@ -1,235 +1,218 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import {
-  BookOpenIcon,
-  ShieldCheckIcon,
-  UsersIcon,
-  ChevronRightIcon,
-  AlertCircleIcon,
-  CheckCircleIcon
-} from '@/components/icons';
-import type { UserRole } from '@/lib/database.types';
-
-import { Suspense } from 'react';
+import { AlertCircleIcon, CheckCircleIcon, ChevronRightIcon, ShieldCheckIcon } from '@/components/icons';
 
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get('next') ?? '';
   const suspended = searchParams?.get('error') === 'account_suspended';
-  const demoMode = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('your-project-ref');
 
+  const [registrationNumber, setRegistrationNumber] = useState('');
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'identity' | 'code'>('identity');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'verifying' | 'error'>('idle');
+  const [message, setMessage] = useState('');
 
-  async function handleMagicLink(e: React.FormEvent) {
-    e.preventDefault();
+  async function requestCode(event: React.FormEvent) {
+    event.preventDefault();
     setStatus('sending');
+    setMessage('');
 
     try {
-      const redirectUrl = new URL('/auth/callback', window.location.origin);
-      if (next && next.startsWith('/')) {
-        redirectUrl.searchParams.set('next', next);
+      const response = await fetch('/api/auth/request-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registrationNumber, email })
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setStatus('error');
+        setMessage(payload.error || 'We could not send your login code.');
+        return;
       }
 
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: redirectUrl.toString()
-        }
-      });
-
-      setStatus(error ? 'error' : 'sent');
+      setStep('code');
+      setStatus('idle');
     } catch {
       setStatus('error');
+      setMessage('We could not reach the sign-in service. Please try again.');
     }
   }
 
-  function handleDemoLogin(role: UserRole) {
-    document.cookie = `mipc_demo_role=${role}; path=/; max-age=86400`;
-    const target = next && next.startsWith(`/${role}`) ? next : `/${role}`;
-    router.push(target);
-    router.refresh();
+  async function verifyCode(event: React.FormEvent) {
+    event.preventDefault();
+    setStatus('verifying');
+    setMessage('');
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: code.trim(),
+        type: 'email'
+      });
+
+      if (error || !data.user) {
+        setStatus('error');
+        setMessage('That code is invalid or has expired. Check the email and try again.');
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, account_status')
+        .eq('id', data.user.id)
+        .single();
+
+      if (!profile || profile.account_status !== 'active') {
+        await supabase.auth.signOut();
+        setStatus('error');
+        setMessage('This MIPC account is not active. Please contact the Academic Registrar.');
+        return;
+      }
+
+      const role = profile.role;
+      const safeNext = next.startsWith(`/${role}`) ? next : `/${role}`;
+      router.replace(safeNext);
+      router.refresh();
+    } catch {
+      setStatus('error');
+      setMessage('We could not verify the code. Please try again.');
+    }
+  }
+
+  function startAgain() {
+    setStep('identity');
+    setCode('');
+    setStatus('idle');
+    setMessage('');
   }
 
   return (
-    <main className="min-h-screen bg-parchment-50 flex flex-col justify-between py-12 px-6">
-      <div className="max-w-md w-full mx-auto my-auto">
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center justify-center group mb-4" aria-label="MIPC home">
-            <span className="relative h-20 w-20 overflow-hidden rounded-full bg-white shadow-academic ring-1 ring-ink-900/10 transition-transform group-hover:scale-[1.02]">
-              <Image src="/mipc-logo.png" alt="Muhabura Integrated Polytechnic College crest" fill sizes="80px" className="object-cover" priority unoptimized />
-            </span>
-          </Link>
-          <h1 className="font-display text-3xl font-bold text-ink-950">
-            Institutional Sign In
-          </h1>
-          <p className="mt-2 text-xs font-mono uppercase tracking-wider text-mipc-green-700 font-bold">
-            Muhabura Integrated Polytechnic College (MIPC)
-          </p>
-          <p className="text-[11px] font-mono text-ink-500 italic mt-0.5">
-            &ldquo;Striving for Excellence&rdquo; · Musanze, Rwanda
-          </p>
+    <main className="min-h-screen bg-[#f4f7f5] lg:grid lg:grid-cols-[1.05fr_.95fr]">
+      <section className="relative hidden overflow-hidden bg-mipc-navy-950 text-white lg:flex lg:min-h-screen lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+        <img src="/api/campus-photo?name=hero" alt="MIPC campus" className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(6,16,34,.96),rgba(6,16,34,.82)_52%,rgba(29,73,50,.78))]" />
+
+        <Link href="/" className="relative z-10 inline-flex w-fit items-center gap-3">
+          <span className="grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-white shadow-lg">
+            <img src="/api/mipc-logo" alt="MIPC crest" className="h-full w-full object-contain p-1" />
+          </span>
+          <span><span className="block text-2xl font-bold">MIPC</span><span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/65">Digital Campus</span></span>
+        </Link>
+
+        <div className="relative z-10 max-w-xl pb-8">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-mipc-green-300">Secure campus access</p>
+          <h1 className="mt-5 font-display text-5xl font-bold leading-[1.03] xl:text-6xl">Your campus,<br />one secure code away.</h1>
+          <p className="mt-6 max-w-lg text-lg leading-8 text-white/72">Use your MIPC registration number and the email registered on your student or staff record. We will send a one-time code to confirm it is really you.</p>
+
+          <div className="mt-9 grid gap-4 sm:grid-cols-3">
+            {['No password to remember', 'Code sent to your email', 'Protected institutional access'].map((item, index) => (
+              <div key={item} className="rounded-2xl border border-white/12 bg-white/7 p-4 backdrop-blur-sm">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-mipc-green-600 text-xs font-bold">{index + 1}</span>
+                <p className="mt-3 text-sm font-semibold leading-5 text-white/85">{item}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-ink-900/10 p-8 shadow-academic">
-          {suspended && <div className="mb-5 flex items-start gap-2 rounded-xl border border-signal-danger/25 bg-signal-danger-bg p-3 text-sm text-signal-danger"><AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" /><span>This account is suspended. Contact the MIPC Academic Registrar if you believe this is an error.</span></div>}
-          {status === 'sent' ? (
-            <div className="text-center py-4">
-              <div className="w-12 h-12 rounded-full bg-signal-ok-bg text-signal-ok flex items-center justify-center mx-auto mb-3">
-                <CheckCircleIcon className="w-7 h-7" />
-              </div>
-              <h2 className="font-display text-lg font-bold text-ink-950">
-                Magic Link Dispatched
-              </h2>
-              <p className="mt-2 text-xs text-ink-700 leading-relaxed font-mono">
-                An authenticated login link has been issued to <strong className="text-ink-950">{email}</strong>. Check your inbox to proceed.
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleMagicLink} className="space-y-4">
+        <p className="relative z-10 text-xs text-white/45">Muhabura Integrated Polytechnic College · Musanze, Rwanda</p>
+      </section>
+
+      <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center lg:hidden">
+            <Link href="/" className="inline-flex items-center gap-3">
+              <span className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-white shadow-academic ring-1 ring-mipc-navy-900/10">
+                <img src="/api/mipc-logo" alt="MIPC crest" className="h-full w-full object-contain p-1" />
+              </span>
+              <span className="text-left"><span className="block font-display text-2xl font-bold text-mipc-navy-950">MIPC</span><span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-mipc-green-700">Digital Campus</span></span>
+            </Link>
+          </div>
+
+          <div className="rounded-[1.75rem] border border-mipc-navy-900/10 bg-white p-6 shadow-academic sm:p-8">
+            <div className="flex items-start justify-between gap-5">
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider font-semibold text-ink-800 mb-1.5">
-                  Institutional Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@mipc.ac.rw"
-                  className="w-full rounded-lg border border-ink-900/15 px-3.5 py-2.5 text-sm text-ink-950 placeholder:text-ink-400 outline-none focus-visible:border-mipc-green-500 bg-parchment-50/50"
-                />
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-mipc-green-700">Campus portal</p>
+                <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-mipc-navy-950">{step === 'identity' ? 'Sign in to MIPC' : 'Check your email'}</h2>
               </div>
-              <button
-                type="submit"
-                disabled={status === 'sending'}
-                className="w-full rounded-lg bg-ink-900 py-2.5 px-4 text-sm font-medium text-white hover:bg-ink-800 transition-colors shadow-xs disabled:opacity-60"
-              >
-                {status === 'sending' ? 'Sending magic link…' : 'Send Authenticated Link'}
-              </button>
-              {status === 'error' && (
-                <div className="flex items-center gap-2 text-xs text-signal-danger bg-signal-danger-bg p-2.5 rounded-lg">
-                  <AlertCircleIcon className="w-4 h-4 shrink-0" />
-                  <span>Unable to dispatch OTP. You can use 1-Click Demo below.</span>
-                </div>
-              )}
-            </form>
-          )}
-
-          {/* Quick 1-Click Demo Profiles */}
-          {demoMode && <div className="mt-8 pt-6 border-t border-ink-900/10">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-ink-600 font-bold">
-                Instant Demo Exploration
-              </span>
-              <span className="text-[10px] font-mono bg-mipc-green-100 text-mipc-green-800 px-2 py-0.5 rounded font-semibold border border-mipc-green-200">
-                1-Click Access
-              </span>
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-mipc-green-50 text-mipc-green-700"><ShieldCheckIcon className="h-5 w-5" /></span>
             </div>
 
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('student')}
-                className="w-full text-left p-3 rounded-lg border border-parchment-300 bg-parchment-50/60 hover:bg-parchment-100/90 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-ink-900 text-mipc-green-400 flex items-center justify-center font-mono text-xs font-bold">
-                    <UsersIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-950 flex items-center gap-2">
-                      <span>Jean-Luc Habimana</span>
-                      <span className="text-[10px] font-mono uppercase bg-mipc-green-100 text-mipc-green-800 px-1.5 py-0.2 rounded font-semibold">
-                        Student
-                      </span>
-                    </div>
-                    <div className="text-xs text-ink-600 font-mono">
-                      B-Tech Software Engineering · ICT
-                    </div>
-                  </div>
-                </div>
-                <ChevronRightIcon className="w-4 h-4 text-ink-400 group-hover:text-mipc-green-600 group-hover:translate-x-0.5 transition-all" />
-              </button>
+            {suspended && <div className="mt-5 flex items-start gap-2 rounded-xl border border-signal-danger/20 bg-signal-danger-bg p-3 text-sm text-signal-danger"><AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" /><span>This account is suspended. Contact the MIPC Academic Registrar.</span></div>}
 
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('lecturer')}
-                className="w-full text-left p-3 rounded-lg border border-parchment-300 bg-parchment-50/60 hover:bg-parchment-100/90 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-ink-900 text-mipc-green-400 flex items-center justify-center font-mono text-xs font-bold">
-                    <BookOpenIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-950 flex items-center gap-2">
-                      <span>Eng. Dr. Emmanuel Ndayisaba</span>
-                      <span className="text-[10px] font-mono uppercase bg-mipc-green-100 text-mipc-green-800 px-1.5 py-0.2 rounded font-semibold">
-                        Faculty
-                      </span>
-                    </div>
-                    <div className="text-xs text-ink-600 font-mono">
-                      Senior Lecturer · Head of ICT Faculty
-                    </div>
-                  </div>
+            {step === 'identity' ? (
+              <form onSubmit={requestCode} className="mt-7 space-y-5">
+                <div>
+                  <label htmlFor="registrationNumber" className="mipc-label">Registration number</label>
+                  <input id="registrationNumber" value={registrationNumber} onChange={(event) => setRegistrationNumber(event.target.value.toUpperCase())} className="mipc-field !min-h-12 uppercase" placeholder="e.g. MIPC-2026-00125" autoComplete="username" maxLength={40} required />
+                  <p className="mt-1.5 text-xs leading-5 text-ink-500">Enter the registration number issued to you by MIPC.</p>
                 </div>
-                <ChevronRightIcon className="w-4 h-4 text-ink-400 group-hover:text-mipc-green-600 group-hover:translate-x-0.5 transition-all" />
-              </button>
 
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('admin')}
-                className="w-full text-left p-3 rounded-lg border border-parchment-300 bg-parchment-50/60 hover:bg-parchment-100/90 transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-ink-900 text-mipc-green-400 flex items-center justify-center font-mono text-xs font-bold">
-                    <ShieldCheckIcon className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-950 flex items-center gap-2">
-                      <span>Rev. Dr. Laurent Shyaka</span>
-                      <span className="text-[10px] font-mono uppercase bg-mipc-green-100 text-mipc-green-800 px-1.5 py-0.2 rounded font-semibold">
-                        Registrar
-                      </span>
-                    </div>
-                    <div className="text-xs text-ink-600 font-mono">
-                      Office of the Academic Registrar & Admissions
-                    </div>
-                  </div>
+                <div>
+                  <label htmlFor="email" className="mipc-label">Registered email address</label>
+                  <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mipc-field !min-h-12" placeholder="your@email.com" autoComplete="email" maxLength={320} required />
+                  <p className="mt-1.5 text-xs leading-5 text-ink-500">The login code will be sent to this email address.</p>
                 </div>
-                <ChevronRightIcon className="w-4 h-4 text-ink-400 group-hover:text-mipc-green-600 group-hover:translate-x-0.5 transition-all" />
-              </button>
+
+                <button type="submit" disabled={status === 'sending'} className="mipc-button-primary w-full !min-h-12 !bg-mipc-green-700 hover:!bg-mipc-green-800">
+                  {status === 'sending' ? 'Checking your details…' : 'Send login code'}
+                  {status !== 'sending' && <ChevronRightIcon className="h-4 w-4" />}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={verifyCode} className="mt-7 space-y-5">
+                <div className="flex items-start gap-3 rounded-xl bg-mipc-green-50 p-4 text-sm leading-6 text-mipc-green-900">
+                  <CheckCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-mipc-green-700" />
+                  <p>We sent a one-time login code to <strong>{email}</strong>. Enter it below to continue.</p>
+                </div>
+
+                <div>
+                  <label htmlFor="code" className="mipc-label">6-digit login code</label>
+                  <input id="code" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} className="mipc-field !min-h-14 text-center font-mono text-2xl font-bold tracking-[0.35em]" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" placeholder="000000" required />
+                </div>
+
+                <button type="submit" disabled={status === 'verifying' || code.length !== 6} className="mipc-button-primary w-full !min-h-12 !bg-mipc-green-700 hover:!bg-mipc-green-800">
+                  {status === 'verifying' ? 'Verifying code…' : 'Enter campus portal'}
+                  {status !== 'verifying' && <ChevronRightIcon className="h-4 w-4" />}
+                </button>
+
+                <div className="flex items-center justify-between gap-4 text-xs">
+                  <button type="button" onClick={startAgain} className="font-semibold text-ink-600 hover:text-mipc-navy-950">Change details</button>
+                  <button type="button" onClick={(event) => requestCode(event as unknown as React.FormEvent)} disabled={status === 'sending'} className="font-bold text-mipc-green-700 hover:text-mipc-green-800">Send a new code</button>
+                </div>
+              </form>
+            )}
+
+            {status === 'error' && message && (
+              <div role="alert" className="mt-5 flex items-start gap-2 rounded-xl border border-signal-danger/20 bg-signal-danger-bg p-3 text-sm leading-5 text-signal-danger">
+                <AlertCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{message}</span>
+              </div>
+            )}
+
+            <div className="mt-7 border-t border-mipc-navy-900/10 pt-5 text-center text-xs leading-5 text-ink-500">
+              Having trouble signing in? Contact the MIPC Academic Registrar to confirm the email attached to your registration number.
             </div>
-          </div>}
-        </div>
+          </div>
 
-        <div className="text-center mt-6">
-          <Link
-            href="/"
-            className="text-xs font-mono text-ink-600 hover:text-ink-950 transition-colors"
-          >
-            &larr; Return to MIPC Official Portal
-          </Link>
+          <p className="mt-6 text-center text-xs text-ink-500"><Link href="/" className="font-semibold hover:text-mipc-navy-950">← Return to MIPC website</Link></p>
         </div>
-      </div>
-
-      <footer className="text-center text-xs text-ink-500 font-mono">
-        Muhabura Integrated Polytechnic College · Musanze, Northern Province, Rwanda
-      </footer>
+      </section>
     </main>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-parchment-50 flex items-center justify-center font-mono text-ink-500">Loading MIPC Portal...</div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-[#f4f7f5] text-sm text-ink-500">Loading campus portal…</div>}>
       <LoginPageContent />
     </Suspense>
   );
