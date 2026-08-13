@@ -19,8 +19,7 @@ function LoginPageContent() {
   const [status, setStatus] = useState<'idle' | 'sending' | 'verifying' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
-  async function requestCode(event: React.FormEvent) {
-    event.preventDefault();
+  async function sendCode() {
     setStatus('sending');
     setMessage('');
 
@@ -46,7 +45,12 @@ function LoginPageContent() {
     }
   }
 
-  async function verifyCode(event: React.FormEvent) {
+  async function requestCode(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await sendCode();
+  }
+
+  async function verifyCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus('verifying');
     setMessage('');
@@ -186,7 +190,7 @@ function LoginPageContent() {
 
                 <div className="flex items-center justify-between gap-4 text-xs">
                   <button type="button" onClick={startAgain} className="font-semibold text-ink-600 hover:text-mipc-navy-950">Change details</button>
-                  <button type="button" onClick={(event) => requestCode(event as unknown as React.FormEvent)} disabled={status === 'sending'} className="font-bold text-mipc-green-700 hover:text-mipc-green-800">Send a new code</button>
+                  <button type="button" onClick={sendCode} disabled={status === 'sending'} className="font-bold text-mipc-green-700 hover:text-mipc-green-800 disabled:opacity-50">{status === 'sending' ? 'Sending…' : 'Send a new code'}</button>
                 </div>
               </form>
             )}
