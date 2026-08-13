@@ -29,22 +29,13 @@ async function requireAdmin() {
   return user;
 }
 
-async function validateAcademicAssignment(admin: ReturnType<typeof createAdminClient>, departmentId: string | null, cohortId: string | null) {
-  if (!cohortId) return;
-  const { data: cohort, error } = await (admin as any).from('cohorts').select('id, department_id').eq('id', cohortId).single();
-  if (error || !cohort) throw new Error('Selected cohort could not be found.');
-  if (!departmentId || cohort.department_id !== departmentId) {
-    throw new Error('The selected cohort does not belong to the selected department.');
-  }
-}
-
-async function syncCohortCourses(admin: ReturnType<typeof createAdminClient>, studentId: string, reviewerId: string, cohortId: string | null, status: string) {
-  if (!cohortId || status !== 'active') return;
-  const { error } = await (admin as any).rpc('sync_student_cohort_enrollments', {
-    target_student_id: studentId,
-    reviewer_id: reviewerId
-  });
-  if (error) throw new Error(error.message);
+function refreshStudentRegistry() {
+  revalidatePath('/admin/students');
+  revalidatePath('/admin/users');
+  revalidatePath('/admin/courses');
+  revalidatePath('/student/courses');
+  revalidatePath('/admin/audit');
+  revalidatePath('/admin');
 }
 
 export async function createStudent(formData: FormData) {
@@ -57,14 +48,12 @@ export async function createStudent(formData: FormData) {
   const cohortId = optional(formData.get('cohort_id'), 64);
   const yearRaw = optional(formData.get('year_of_study'), 2);
   const yearOfStudy = yearRaw ? Number(yearRaw) : null;
-  if (yearOfStudy !== null && (!Number.isInteger(yearOfStudy) || yearOfStudy < 1 || yearOfStudy > 8)) throw new Error('Year of study is invalid.');
-  await validateAcademicAssignment(admin, departmentId, cohortId);
+  if (yearOfStudy !== null && (!Number.isInteger(yearOfStudy) || yearOfStudy < 1 || yearOfStudy > 8)) {
+    throw new Error('Year of study is invalid.');
+  }
 
-  const { data: existingReg } = await (admin as any).from('profiles').select('id').eq('registration_number', registrationNumber).maybeSingle();
-  if (existingReg) throw new Error('That registration number is already assigned.');
-  const { data: existingEmail } = await (admin as any).from('profiles').select('id').ilike('email', email).maybeSingle();
-  if (existingEmail) throw new Error('That email address already belongs to an MIPC account.');
-
+  // Supabase Auth is a separate service from Postgres, so create the identity
+  // first and compensate by deleting it if the atomic database transaction fails.
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
@@ -72,37 +61,24 @@ export async function createStudent(formData: FormData) {
   });
   if (authError || !authData.user) throw new Error(authError?.message || 'Student account could not be created.');
 
-  const { error: profileError } = await (admin as any).from('profiles').insert({
-    id: authData.user.id,
-    role: 'student',
-    full_name: fullName,
-    email,
-    registration_number: registrationNumber,
-    department_id: departmentId,
-    cohort_id: cohortId,
-    year_of_study: yearOfStudy,
-    account_status: 'active'
+  const { error: registryError } = await (admin as any).rpc('admin_create_student_profile', {
+    target_student_id: authData.user.id,
+    student_full_name: fullName,
+    student_email: email,
+    student_registration_number: registrationNumber,
+    target_department_id: departmentId,
+    target_cohort_id: cohortId,
+    student_year_of_study: yearOfStudy,
+    reviewer_id: actor.id
   });
 
-  if (profileError) {
-    await admin.auth.admin.deleteUser(authData.user.id).catch(() => undefined);
-    throw new Error(profileError.message);
+  if (registryError) {
+    const { error: cleanupError } = await admin.auth.admin.deleteUser(authData.user.id);
+    if (cleanupError) console.error('Failed to compensate student Auth creation', { userId: authData.user.id, message: cleanupError.message });
+    throw new Error(registryError.message);
   }
 
-  await syncCohortCourses(admin, authData.user.id, actor.id, cohortId, 'active');
-
-  await (admin as any).from('audit_log').insert({
-    actor_id: actor.id,
-    action: 'student.create',
-    target_table: 'profiles',
-    target_id: authData.user.id,
-    new_value: { full_name: fullName, email, registration_number: registrationNumber, department_id: departmentId, cohort_id: cohortId, year_of_study: yearOfStudy, account_status: 'active' }
-  });
-
-  revalidatePath('/admin/students');
-  revalidatePath('/admin/courses');
-  revalidatePath('/student/courses');
-  revalidatePath('/admin');
+  refreshStudentRegistry();
 }
 
 export async function updateStudent(formData: FormData) {
@@ -118,47 +94,50 @@ export async function updateStudent(formData: FormData) {
   const yearOfStudy = yearRaw ? Number(yearRaw) : null;
   const accountStatus = text(formData.get('account_status'), 'Account status', 20);
   if (!['active', 'suspended'].includes(accountStatus)) throw new Error('Account status is invalid.');
-  if (yearOfStudy !== null && (!Number.isInteger(yearOfStudy) || yearOfStudy < 1 || yearOfStudy > 8)) throw new Error('Year of study is invalid.');
-  await validateAcademicAssignment(admin, departmentId, cohortId);
+  if (yearOfStudy !== null && (!Number.isInteger(yearOfStudy) || yearOfStudy < 1 || yearOfStudy > 8)) {
+    throw new Error('Year of study is invalid.');
+  }
 
-  const { data: current, error: currentError } = await (admin as any).from('profiles').select('*').eq('id', studentId).eq('role', 'student').single();
+  const { data: current, error: currentError } = await (admin as any)
+    .from('profiles')
+    .select('id, email, role')
+    .eq('id', studentId)
+    .eq('role', 'student')
+    .single();
   if (currentError || !current) throw new Error('Student record could not be found.');
 
-  const { data: duplicateReg } = await (admin as any).from('profiles').select('id').eq('registration_number', registrationNumber).neq('id', studentId).maybeSingle();
-  if (duplicateReg) throw new Error('That registration number is already assigned.');
-  const { data: duplicateEmail } = await (admin as any).from('profiles').select('id').ilike('email', email).neq('id', studentId).maybeSingle();
-  if (duplicateEmail) throw new Error('That email address already belongs to another MIPC account.');
+  const previousEmail = String(current.email).trim().toLowerCase();
+  const emailChanged = email !== previousEmail;
 
-  if (email !== String(current.email).toLowerCase()) {
+  if (emailChanged) {
     const { error: authError } = await admin.auth.admin.updateUserById(studentId, { email, email_confirm: true });
     if (authError) throw new Error(authError.message);
   }
 
-  const { error: updateError } = await (admin as any).from('profiles').update({
-    full_name: fullName,
-    email,
-    registration_number: registrationNumber,
-    department_id: departmentId,
-    cohort_id: cohortId,
-    year_of_study: yearOfStudy,
-    account_status: accountStatus
-  }).eq('id', studentId);
-  if (updateError) throw new Error(updateError.message);
-
-  await syncCohortCourses(admin, studentId, actor.id, cohortId, accountStatus);
-
-  await (admin as any).from('audit_log').insert({
-    actor_id: actor.id,
-    action: 'student.registry.update',
-    target_table: 'profiles',
-    target_id: studentId,
-    old_value: { full_name: current.full_name, email: current.email, registration_number: current.registration_number, department_id: current.department_id, cohort_id: current.cohort_id, year_of_study: current.year_of_study, account_status: current.account_status },
-    new_value: { full_name: fullName, email, registration_number: registrationNumber, department_id: departmentId, cohort_id: cohortId, year_of_study: yearOfStudy, account_status: accountStatus }
+  const { error: registryError } = await (admin as any).rpc('admin_update_student', {
+    target_student_id: studentId,
+    student_full_name: fullName,
+    student_email: email,
+    student_registration_number: registrationNumber,
+    target_department_id: departmentId,
+    target_cohort_id: cohortId,
+    student_year_of_study: yearOfStudy,
+    new_account_status: accountStatus,
+    reviewer_id: actor.id
   });
 
-  revalidatePath('/admin/students');
-  revalidatePath('/admin/users');
-  revalidatePath('/admin/courses');
-  revalidatePath('/student/courses');
-  revalidatePath('/admin/audit');
+  if (registryError) {
+    // Keep Auth and the transactional registry aligned if the database rejects
+    // the requested update after the Auth email was already changed.
+    if (emailChanged) {
+      const { error: revertError } = await admin.auth.admin.updateUserById(studentId, {
+        email: previousEmail,
+        email_confirm: true
+      });
+      if (revertError) console.error('Failed to compensate student Auth email update', { studentId, message: revertError.message });
+    }
+    throw new Error(registryError.message);
+  }
+
+  refreshStudentRegistry();
 }
