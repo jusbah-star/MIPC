@@ -74,15 +74,16 @@ function LoginPageContent() {
         .select('role, account_status')
         .eq('id', data.user.id)
         .single();
+      const p = profile as any;
 
-      if (!profile || profile.account_status !== 'active') {
+      if (!p || p.account_status !== 'active') {
         await supabase.auth.signOut();
         setStatus('error');
         setMessage('This MIPC account is not active. Please contact the Academic Registrar.');
         return;
       }
 
-      const role = profile.role;
+      const role = p.role as 'student' | 'lecturer' | 'admin';
       const safeNext = next.startsWith(`/${role}`) ? next : `/${role}`;
       router.replace(safeNext);
       router.refresh();
