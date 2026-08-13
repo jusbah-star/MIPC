@@ -5,6 +5,7 @@ import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 
 type PortalRole = 'student' | 'lecturer' | 'admin';
+const PRODUCTION_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://mipc-rosy.vercel.app';
 
 function requestedPortal(value: unknown): PortalRole {
   const portal = requiredText(value, 'Portal', 20, 5).trim().toLowerCase();
@@ -75,13 +76,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campus sign-in is temporarily unavailable.' }, { status: 503 });
     }
 
-    const origin = new URL(request.url).origin;
+    const redirectTo = process.env.NODE_ENV === 'production'
+      ? PRODUCTION_SITE_URL
+      : new URL(request.url).origin;
     const supabase = createAuthDeliveryClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: origin
+        emailRedirectTo: redirectTo
       }
     });
 
