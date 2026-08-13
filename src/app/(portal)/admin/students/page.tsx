@@ -11,15 +11,17 @@ export default async function StudentRegistryPage() {
 
   const [{ data: students, error: studentError }, { data: departments, error: departmentError }, { data: cohorts, error: cohortError }] = await Promise.all([
     (supabase as any).from('profiles').select('id, full_name, email, registration_number, department_id, cohort_id, year_of_study, account_status, created_at').eq('role', 'student').order('full_name'),
-    supabase.from('departments').select('id, name, code').order('name'),
-    supabase.from('cohorts').select('id, name, department_id, start_date, end_date').order('start_date', { ascending: false })
+    (supabase as any).from('departments').select('id, name, code').order('name'),
+    (supabase as any).from('cohorts').select('id, name, department_id, start_date, end_date').order('start_date', { ascending: false })
   ]);
   const error = studentError ?? departmentError ?? cohortError;
   if (error) throw new Error(error.message);
 
-  const rows = students ?? [];
-  const activeCount = rows.filter((student: any) => student.account_status === 'active').length;
-  const assignedCount = rows.filter((student: any) => student.registration_number).length;
+  const rows: any[] = (students ?? []) as any[];
+  const departmentRows: any[] = (departments ?? []) as any[];
+  const cohortRows: any[] = (cohorts ?? []) as any[];
+  const activeCount = rows.filter((student) => student.account_status === 'active').length;
+  const assignedCount = rows.filter((student) => student.registration_number).length;
 
   return (
     <div className="space-y-8">
@@ -54,8 +56,8 @@ export default async function StudentRegistryPage() {
             <div className="sm:col-span-2"><label className="mipc-label" htmlFor="new-full-name">Full legal name</label><input className="mipc-field" id="new-full-name" name="full_name" required maxLength={160} /></div>
             <div><label className="mipc-label" htmlFor="new-reg">Registration number</label><input className="mipc-field uppercase" id="new-reg" name="registration_number" required maxLength={40} placeholder="MIPC-2026-00125" /></div>
             <div><label className="mipc-label" htmlFor="new-email">Login email</label><input className="mipc-field" id="new-email" name="email" type="email" required maxLength={320} /></div>
-            <div><label className="mipc-label" htmlFor="new-dept">Department of study</label><select className="mipc-field" id="new-dept" name="department_id" defaultValue=""><option value="">Not assigned yet</option>{(departments ?? []).map((department: any) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></div>
-            <div><label className="mipc-label" htmlFor="new-cohort">Cohort / intake</label><select className="mipc-field" id="new-cohort" name="cohort_id" defaultValue=""><option value="">Not assigned yet</option>{(cohorts ?? []).map((cohort: any) => { const dept = (departments ?? []).find((d: any) => d.id === cohort.department_id); return <option key={cohort.id} value={cohort.id}>{cohort.name}{dept ? ` · ${dept.code}` : ''}</option>; })}</select></div>
+            <div><label className="mipc-label" htmlFor="new-dept">Department of study</label><select className="mipc-field" id="new-dept" name="department_id" defaultValue=""><option value="">Not assigned yet</option>{departmentRows.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></div>
+            <div><label className="mipc-label" htmlFor="new-cohort">Cohort / intake</label><select className="mipc-field" id="new-cohort" name="cohort_id" defaultValue=""><option value="">Not assigned yet</option>{cohortRows.map((cohort) => { const dept: any = departmentRows.find((d) => d.id === cohort.department_id); return <option key={cohort.id} value={cohort.id}>{cohort.name}{dept ? ` · ${dept.code}` : ''}</option>; })}</select></div>
             <div><label className="mipc-label" htmlFor="new-year">Year of study</label><select className="mipc-field" id="new-year" name="year_of_study" defaultValue=""><option value="">Not assigned</option>{[1,2,3,4,5,6,7,8].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></div>
             <div className="flex items-end"><button type="submit" className="mipc-button-primary w-full !bg-mipc-green-700"><PlusIcon className="h-4 w-4" /> Create student account</button></div>
           </form>
@@ -69,9 +71,9 @@ export default async function StudentRegistryPage() {
         </div>
 
         <div className="grid gap-4">
-          {rows.map((student: any) => {
-            const department = (departments ?? []).find((item: any) => item.id === student.department_id);
-            const cohort = (cohorts ?? []).find((item: any) => item.id === student.cohort_id);
+          {rows.map((student) => {
+            const department: any = departmentRows.find((item) => item.id === student.department_id);
+            const cohort: any = cohortRows.find((item) => item.id === student.cohort_id);
             return (
               <details key={student.id} className="group overflow-hidden rounded-2xl border border-mipc-navy-900/10 bg-white shadow-sm">
                 <summary className="cursor-pointer list-none p-5 marker:content-none sm:p-6">
@@ -90,8 +92,8 @@ export default async function StudentRegistryPage() {
                   <div className="lg:col-span-2"><label className="mipc-label" htmlFor={`name-${student.id}`}>Full legal name</label><input className="mipc-field" id={`name-${student.id}`} name="full_name" defaultValue={student.full_name} required /></div>
                   <div><label className="mipc-label" htmlFor={`reg-${student.id}`}>Registration number</label><input className="mipc-field uppercase" id={`reg-${student.id}`} name="registration_number" defaultValue={student.registration_number ?? ''} required /></div>
                   <div><label className="mipc-label" htmlFor={`email-${student.id}`}>Login email</label><input className="mipc-field" id={`email-${student.id}`} name="email" type="email" defaultValue={student.email} required /></div>
-                  <div><label className="mipc-label" htmlFor={`dept-${student.id}`}>Department</label><select className="mipc-field" id={`dept-${student.id}`} name="department_id" defaultValue={student.department_id ?? ''}><option value="">Not assigned</option>{(departments ?? []).map((item: any) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-                  <div><label className="mipc-label" htmlFor={`cohort-${student.id}`}>Cohort / intake</label><select className="mipc-field" id={`cohort-${student.id}`} name="cohort_id" defaultValue={student.cohort_id ?? ''}><option value="">Not assigned</option>{(cohorts ?? []).map((item: any) => { const dept = (departments ?? []).find((d: any) => d.id === item.department_id); return <option key={item.id} value={item.id}>{item.name}{dept ? ` · ${dept.code}` : ''}</option>; })}</select></div>
+                  <div><label className="mipc-label" htmlFor={`dept-${student.id}`}>Department</label><select className="mipc-field" id={`dept-${student.id}`} name="department_id" defaultValue={student.department_id ?? ''}><option value="">Not assigned</option>{departmentRows.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+                  <div><label className="mipc-label" htmlFor={`cohort-${student.id}`}>Cohort / intake</label><select className="mipc-field" id={`cohort-${student.id}`} name="cohort_id" defaultValue={student.cohort_id ?? ''}><option value="">Not assigned</option>{cohortRows.map((item) => { const dept: any = departmentRows.find((d) => d.id === item.department_id); return <option key={item.id} value={item.id}>{item.name}{dept ? ` · ${dept.code}` : ''}</option>; })}</select></div>
                   <div><label className="mipc-label" htmlFor={`year-${student.id}`}>Year of study</label><select className="mipc-field" id={`year-${student.id}`} name="year_of_study" defaultValue={student.year_of_study ? String(student.year_of_study) : ''}><option value="">Not assigned</option>{[1,2,3,4,5,6,7,8].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></div>
                   <div><label className="mipc-label" htmlFor={`status-${student.id}`}>Portal status</label><select className="mipc-field" id={`status-${student.id}`} name="account_status" defaultValue={student.account_status}><option value="active">Active</option><option value="suspended">Suspended</option></select></div>
                   <div className="sm:col-span-2 lg:col-span-4 flex justify-end"><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><ShieldCheckIcon className="h-4 w-4" /> Save student record</button></div>
