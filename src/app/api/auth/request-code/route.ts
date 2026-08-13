@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient, createClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createAuthDeliveryClient } from '@/lib/supabase/auth-delivery';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     }
 
     jsonBodySize(request, 8_000);
-    await enforceRateLimit(`portal-code:${clientAddress(request)}`, 5, 15 * 60 * 1000);
+    await enforceRateLimit(`portal-link:${clientAddress(request)}`, 5, 15 * 60 * 1000);
 
     const body = await request.json();
     const portal = requestedPortal(body.portal);
@@ -74,24 +75,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Campus sign-in is temporarily unavailable.' }, { status: 503 });
     }
 
-    const supabase = await createClient();
+    const origin = new URL(request.url).origin;
+    const supabase = createAuthDeliveryClient();
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false }
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: origin
+      }
     });
 
     if (error) {
-      console.error('Portal OTP dispatch failed', { message: error.message, portal });
-      return NextResponse.json({ error: 'We could not send the login code. Please try again.' }, { status: 503 });
+      console.error('Portal sign-in link dispatch failed', { message: error.message, portal });
+      return NextResponse.json({ error: 'We could not send the sign-in link. Please try again.' }, { status: 503 });
     }
 
-    return NextResponse.json({ ok: true }, { status: 200 });
+    return NextResponse.json({ ok: true, mode: 'link' }, { status: 200 });
   } catch (error) {
     if (error instanceof ValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (error instanceof Error && error.message === 'RATE_LIMITED') {
-      return NextResponse.json({ error: 'Too many code requests. Please wait a few minutes and try again.' }, { status: 429 });
+      return NextResponse.json({ error: 'Too many sign-in requests. Please wait a few minutes and try again.' }, { status: 429 });
     }
     return NextResponse.json({ error: 'Campus sign-in is temporarily unavailable.' }, { status: 500 });
   }
