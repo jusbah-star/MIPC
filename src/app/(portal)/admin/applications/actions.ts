@@ -22,6 +22,8 @@ function refreshAdmissions() {
   revalidatePath('/admin');
   revalidatePath('/admin/users');
   revalidatePath('/admin/students');
+  revalidatePath('/admin/courses');
+  revalidatePath('/student/courses');
   revalidatePath('/admin/audit');
 }
 
@@ -142,6 +144,14 @@ export async function enrollApprovedApplication(formData: FormData) {
   if (profileError) {
     if (createdAuthUser) await admin.auth.admin.deleteUser(studentId).catch(() => undefined);
     throw new Error(profileError.message);
+  }
+
+  if (cohortId) {
+    const { error: syncError } = await (admin as any).rpc('sync_student_cohort_enrollments', {
+      target_student_id: studentId,
+      reviewer_id: actor.id
+    });
+    if (syncError) throw new Error(syncError.message);
   }
 
   const enrolledAt = new Date().toISOString();
