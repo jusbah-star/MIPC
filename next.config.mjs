@@ -32,6 +32,17 @@ const nextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: '128kb' }
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/campus-front.webp', destination: '/api/campus-photo?name=hero' },
+        { source: '/campus-side.webp', destination: '/api/campus-photo?name=campus' },
+        { source: '/leadership-community.webp', destination: '/api/campus-photo?name=community' }
+      ],
+      afterFiles: [],
+      fallback: []
+    };
+  },
   async headers() {
     return [{
       source: '/(.*)',
