@@ -1,148 +1,104 @@
+import Link from 'next/link';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
-import { approveApplication, rejectApplication } from './actions';
-import {
-  AwardIcon,
-  CheckCircleIcon,
-  AlertCircleIcon,
-  FileTextIcon
-} from '@/components/icons';
+import { approveApplication, enrollApprovedApplication, rejectApplication } from './actions';
+import { CheckCircleIcon, AlertCircleIcon, UsersIcon } from '@/components/icons';
 
 export default async function ApplicationsPage() {
-  let applications = dataStore.applications;
+  let applications: any[] = dataStore.applications;
+  let departments: any[] = dataStore.departments;
+  let cohorts: any[] = dataStore.cohorts;
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const { data: dbApps, error } = await supabase
-      .from('applications')
-      .select('id, full_name, email, phone, statement, status, submitted_at')
-      .order('submitted_at', { ascending: false });
-    if (error) throw new Error('Applications could not be loaded.');
-    applications = (dbApps ?? []) as any;
+    const [appsResult, departmentsResult, cohortsResult] = await Promise.all([
+      (supabase as any).from('applications').select('id, full_name, email, phone, statement, status, department_id, submitted_at, enrolled_student_id, enrolled_at').order('submitted_at', { ascending: false }),
+      (supabase as any).from('departments').select('id, name, code').order('name'),
+      (supabase as any).from('cohorts').select('id, name, department_id, start_date').order('start_date', { ascending: false })
+    ]);
+    const error = appsResult.error ?? departmentsResult.error ?? cohortsResult.error;
+    if (error) throw new Error('Admissions data could not be loaded.');
+    applications = appsResult.data ?? [];
+    departments = departmentsResult.data ?? [];
+    cohorts = cohortsResult.data ?? [];
   }
 
-  const pendingCount = applications.filter((a) => a.status === 'pending').length;
-  const approvedCount = applications.filter((a) => a.status === 'approved').length;
+  const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
+  const approvedAwaitingEnrollment = applications.filter((a) => a.status === 'approved' && !a.enrolled_student_id).length;
+  const enrolledCount = applications.filter((a) => a.enrolled_student_id).length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-7">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <span className="text-xs font-mono uppercase tracking-wider text-brass-600 font-bold block mb-1">
-            Admissions Board Governance
-          </span>
-          <h1 className="font-display text-3xl font-bold text-ink-950">
-            Candidate Matriculation Pipeline
-          </h1>
-          <p className="mt-1 text-sm text-ink-700">
-            Adjudicate candidate dossiers. Approval generates verified student credentials, assigns a matriculation number, and seeds foundational course enrollments.
-          </p>
+          <p className="mipc-eyebrow">Admissions & enrollment</p>
+          <h1 className="mipc-page-title">Candidate admissions pipeline</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">Approve admission first, then complete the student's academic placement before creating their campus portal identity.</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-mono bg-brass-400/20 text-brass-700 px-3 py-1.5 rounded-lg font-bold">
-            {pendingCount} Pending Review
-          </span>
-          <span className="text-xs font-mono bg-signal-ok-bg text-signal-ok px-3 py-1.5 rounded-lg font-bold">
-            {approvedCount} Matriculated
-          </span>
+        <div className="flex flex-wrap gap-2 text-xs font-bold">
+          <span className="rounded-full bg-signal-warn-bg px-3 py-1.5 text-signal-warn">{pendingCount} awaiting decision</span>
+          <span className="rounded-full bg-mipc-green-50 px-3 py-1.5 text-mipc-green-800">{approvedAwaitingEnrollment} ready to enroll</span>
+          <span className="rounded-full bg-mipc-navy-950 px-3 py-1.5 text-white">{enrolledCount} enrolled</span>
         </div>
-      </div>
+      </header>
 
-      <div className="space-y-4">
+      <div className="grid gap-5">
         {applications.map((app) => {
           const isPending = app.status === 'pending' || app.status === 'under_review';
           const isApproved = app.status === 'approved';
-          const isRejected = app.status === 'rejected';
+          const isEnrolled = Boolean(app.enrolled_student_id);
+          const suggestedDepartment = departments.find((item) => item.id === app.department_id);
 
           return (
-            <div
-              key={app.id}
-              className="bg-white rounded-2xl border border-ink-900/10 p-6 sm:p-8 shadow-academic space-y-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-parchment-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-parchment-200 text-ink-900 flex items-center justify-center font-display font-bold text-lg">
-                    {app.full_name.charAt(0)}
+            <article key={app.id} className="overflow-hidden rounded-[1.4rem] border border-mipc-navy-900/10 bg-white shadow-academic">
+              <div className="p-5 sm:p-7">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-display text-2xl font-bold text-mipc-navy-950">{app.full_name}</h2>
+                      {isPending && <span className="rounded-full bg-signal-warn-bg px-2.5 py-1 text-[10px] font-bold uppercase text-signal-warn">Awaiting decision</span>}
+                      {isApproved && !isEnrolled && <span className="rounded-full bg-mipc-green-50 px-2.5 py-1 text-[10px] font-bold uppercase text-mipc-green-800">Approved · enrollment pending</span>}
+                      {isEnrolled && <span className="inline-flex items-center gap-1 rounded-full bg-mipc-navy-950 px-2.5 py-1 text-[10px] font-bold uppercase text-white"><CheckCircleIcon className="h-3 w-3" /> Enrolled</span>}
+                      {app.status === 'rejected' && <span className="rounded-full bg-signal-danger-bg px-2.5 py-1 text-[10px] font-bold uppercase text-signal-danger">Declined</span>}
+                    </div>
+                    <p className="mt-1 text-sm text-ink-600">{app.email}{app.phone ? ` · ${app.phone}` : ''}</p>
+                    <p className="mt-1 text-xs text-ink-500">Applied {new Date(app.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}{suggestedDepartment ? ` · Requested ${suggestedDepartment.name}` : ''}</p>
                   </div>
-                  <div>
-                    <h2 className="font-display text-xl font-bold text-ink-950">
-                      {app.full_name}
-                    </h2>
-                    <p className="text-xs font-mono text-ink-500">
-                      {app.email} {app.phone ? `· ${app.phone}` : ''}
-                    </p>
-                  </div>
+                  {isEnrolled && <Link href="/admin/students" className="mipc-button-secondary"><UsersIcon className="h-4 w-4" /> Open Student Registry</Link>}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-ink-500">
-                    Lodged: {new Date(app.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
+                {app.statement && <div className="mt-5 rounded-xl bg-[#f7f8f5] p-4 text-sm italic leading-6 text-ink-700">“{app.statement}”</div>}
 
-                  {isPending && (
-                    <span className="text-[10px] font-mono text-signal-warn bg-signal-warn-bg px-2.5 py-1 rounded font-bold uppercase">
-                      Pending Adjudication
-                    </span>
-                  )}
-                  {isApproved && (
-                    <span className="text-[10px] font-mono text-signal-ok bg-signal-ok-bg px-2.5 py-1 rounded font-bold uppercase flex items-center gap-1">
-                      <CheckCircleIcon className="w-3 h-3" />
-                      <span>Matriculated</span>
-                    </span>
-                  )}
-                  {isRejected && (
-                    <span className="text-[10px] font-mono text-signal-danger bg-signal-danger-bg px-2.5 py-1 rounded font-bold uppercase">
-                      Declined
-                    </span>
-                  )}
-                </div>
+                {isPending && (
+                  <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-mipc-navy-900/10 pt-5">
+                    <form action={rejectApplication.bind(null, app.id)}><button type="submit" className="mipc-button-secondary !border-signal-danger/25 !text-signal-danger">Decline admission</button></form>
+                    <form action={approveApplication.bind(null, app.id)}><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><CheckCircleIcon className="h-4 w-4" /> Approve admission</button></form>
+                  </div>
+                )}
               </div>
 
-              {/* Personal Statement */}
-              {(app as any).statement && (
-                <div className="space-y-1.5">
-                  <span className="text-xs font-mono uppercase tracking-wider text-ink-600 font-bold block">
-                    Candidate Statement of Purpose
-                  </span>
-                  <div className="bg-parchment-50 rounded-xl border border-parchment-300 p-4 text-xs text-ink-900 font-serif leading-relaxed italic">
-                    &ldquo;{(app as any).statement}&rdquo;
+              {isApproved && !isEnrolled && (
+                <div className="border-t border-mipc-navy-900/10 bg-[#f6f8f6] p-5 sm:p-7">
+                  <div className="mb-5">
+                    <p className="text-xs font-bold uppercase tracking-[0.17em] text-mipc-green-700">Enrollment setup</p>
+                    <h3 className="mt-1 font-display text-xl font-bold text-mipc-navy-950">Create the student's official academic identity</h3>
+                    <p className="mt-1 text-sm text-ink-600">Assign the registration number and placement. Submitting this creates or completes the student's portal account.</p>
                   </div>
-                </div>
-              )}
-
-              {/* Decision Actions */}
-              {isPending && (
-                <div className="pt-3 flex items-center justify-end gap-3">
-                  <form action={rejectApplication.bind(null, app.id)}>
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-signal-danger-bg text-signal-danger hover:bg-signal-danger/20 border border-signal-danger/30 px-4 py-2 text-xs font-mono font-bold transition-colors"
-                    >
-                      Decline Admission
-                    </button>
-                  </form>
-
-                  <form action={approveApplication.bind(null, app.id)}>
-                    <button
-                      type="submit"
-                      className="rounded-lg bg-ink-900 text-white hover:bg-ink-800 px-5 py-2 text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5"
-                    >
-                      <CheckCircleIcon className="w-3.5 h-3.5 text-brass-400" />
-                      <span>Approve & Matriculate Student</span>
-                    </button>
+                  <form action={enrollApprovedApplication} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <input type="hidden" name="application_id" value={app.id} />
+                    <div><label className="mipc-label" htmlFor={`reg-${app.id}`}>Registration number</label><input id={`reg-${app.id}`} name="registration_number" className="mipc-field uppercase" placeholder="MIPC-2026-00125" required maxLength={40} /></div>
+                    <div><label className="mipc-label" htmlFor={`dept-${app.id}`}>Department of study</label><select id={`dept-${app.id}`} name="department_id" className="mipc-field" defaultValue={app.department_id ?? ''} required><option value="" disabled>Select department</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></div>
+                    <div><label className="mipc-label" htmlFor={`cohort-${app.id}`}>Cohort / intake</label><select id={`cohort-${app.id}`} name="cohort_id" className="mipc-field" defaultValue=""><option value="">Assign later</option>{cohorts.map((cohort) => { const dept = departments.find((d) => d.id === cohort.department_id); return <option key={cohort.id} value={cohort.id}>{cohort.name}{dept ? ` · ${dept.code}` : ''}</option>; })}</select></div>
+                    <div><label className="mipc-label" htmlFor={`year-${app.id}`}>Year of study</label><select id={`year-${app.id}`} name="year_of_study" className="mipc-field" defaultValue="1"><option value="">Assign later</option>{[1,2,3,4,5,6,7,8].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></div>
+                    <div className="sm:col-span-2 lg:col-span-4 flex justify-end"><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><UsersIcon className="h-4 w-4" /> Enroll student & create portal account</button></div>
                   </form>
                 </div>
               )}
-            </div>
+            </article>
           );
         })}
 
-        {applications.length === 0 && (
-          <div className="bg-white rounded-2xl border border-ink-900/10 p-12 text-center text-ink-500 font-mono text-xs">
-            No applications recorded in the admissions ledger.
-          </div>
-        )}
+        {applications.length === 0 && <div className="rounded-2xl border border-dashed border-mipc-navy-900/15 bg-white p-12 text-center text-sm text-ink-500"><AlertCircleIcon className="mx-auto mb-3 h-6 w-6" />No applications recorded yet.</div>}
       </div>
     </div>
   );
