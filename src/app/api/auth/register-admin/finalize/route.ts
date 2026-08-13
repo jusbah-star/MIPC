@@ -23,7 +23,28 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient() as any;
-    const { error: profileError } = await admin.from('profiles').upsert({
+    const existing = await admin
+      .from('profiles')
+      .select('role, account_status')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (existing.error) {
+      console.error('Administrator profile lookup failed', { code: existing.error.code });
+      return NextResponse.json({ error: 'We could not complete administrator registration.' }, { status: 503 });
+    }
+
+    if (existing.data) {
+      if (existing.data.role !== 'admin') {
+        return NextResponse.json({ error: 'This email is linked to a conflicting MIPC role.' }, { status: 409 });
+      }
+      if (existing.data.account_status !== 'active') {
+        return NextResponse.json({ error: 'This administrator account is suspended.' }, { status: 403 });
+      }
+      return NextResponse.json({ ok: true, redirectTo: '/admin' });
+    }
+
+    const { error: profileError } = await admin.from('profiles').insert({
       id: user.id,
       role: 'admin',
       full_name: fullName,
@@ -33,7 +54,7 @@ export async function POST(request: Request) {
       department_id: null,
       cohort_id: null,
       year_of_study: null
-    }, { onConflict: 'id' });
+    });
 
     if (profileError) {
       console.error('Administrator profile finalization failed', { code: profileError.code });
