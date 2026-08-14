@@ -1,26 +1,30 @@
 import Link from 'next/link';
-import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createAdminClient, createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { dataStore } from '@/lib/data-store';
-import { approveApplication, enrollApprovedApplication, rejectApplication } from './actions';
+import { approveApplication, enrollApprovedApplication, rejectApplication, retryApplicationEmails } from './actions';
 import { CheckCircleIcon, AlertCircleIcon, UsersIcon } from '@/components/icons';
 
 export default async function ApplicationsPage() {
   let applications: any[] = dataStore.applications;
   let departments: any[] = dataStore.departments;
   let cohorts: any[] = dataStore.cohorts;
+  let notifications: any[] = [];
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
-    const [appsResult, departmentsResult, cohortsResult] = await Promise.all([
-      (supabase as any).from('applications').select('id, full_name, email, phone, statement, status, department_id, submitted_at, enrolled_student_id, enrolled_at').order('submitted_at', { ascending: false }),
+    const admin = createAdminClient();
+    const [appsResult, departmentsResult, cohortsResult, notificationsResult] = await Promise.all([
+      (supabase as any).from('applications').select('id, full_name, email, phone, statement, status, department_id, submitted_at, enrolled_student_id, enrolled_at, secondary_field_of_study, national_exam_result, documents_path').order('submitted_at', { ascending: false }),
       (supabase as any).from('departments').select('id, name, code').order('name'),
-      (supabase as any).from('cohorts').select('id, name, department_id, start_date').order('start_date', { ascending: false })
+      (supabase as any).from('cohorts').select('id, name, department_id, start_date').order('start_date', { ascending: false }),
+      (admin as any).from('application_email_notifications').select('application_id, event, status, last_error, sent_at').order('created_at', { ascending: true })
     ]);
-    const error = appsResult.error ?? departmentsResult.error ?? cohortsResult.error;
+    const error = appsResult.error ?? departmentsResult.error ?? cohortsResult.error ?? notificationsResult.error;
     if (error) throw new Error('Admissions data could not be loaded.');
     applications = appsResult.data ?? [];
     departments = departmentsResult.data ?? [];
     cohorts = cohortsResult.data ?? [];
+    notifications = notificationsResult.data ?? [];
   }
 
   const pendingCount = applications.filter((a) => a.status === 'pending' || a.status === 'under_review').length;
@@ -33,7 +37,7 @@ export default async function ApplicationsPage() {
         <div>
           <p className="mipc-eyebrow">Admissions & enrollment</p>
           <h1 className="mipc-page-title">Candidate admissions pipeline</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">Approve admission first, then complete the student's academic placement before creating their campus portal identity.</p>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-700">Principal oversight includes the applicant's secondary-school evidence, decision status, notification delivery and enrollment progress.</p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs font-bold">
           <span className="rounded-full bg-signal-warn-bg px-3 py-1.5 text-signal-warn">{pendingCount} awaiting decision</span>
@@ -48,6 +52,8 @@ export default async function ApplicationsPage() {
           const isApproved = app.status === 'approved';
           const isEnrolled = Boolean(app.enrolled_student_id);
           const suggestedDepartment = departments.find((item) => item.id === app.department_id);
+          const appNotifications = notifications.filter((item) => item.application_id === app.id);
+          const hasUnsent = appNotifications.some((item) => item.status !== 'sent');
 
           return (
             <article key={app.id} className="overflow-hidden rounded-[1.4rem] border border-mipc-navy-900/10 bg-white shadow-academic">
@@ -64,33 +70,36 @@ export default async function ApplicationsPage() {
                     <p className="mt-1 text-sm text-ink-600">{app.email}{app.phone ? ` · ${app.phone}` : ''}</p>
                     <p className="mt-1 text-xs text-ink-500">Applied {new Date(app.submitted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}{suggestedDepartment ? ` · Requested ${suggestedDepartment.name}` : ''}</p>
                   </div>
-                  {isEnrolled && <Link href="/admin/students" className="mipc-button-secondary"><UsersIcon className="h-4 w-4" /> Open Student Registry</Link>}
+                  <div className="flex flex-wrap items-start justify-end gap-2">
+                    {appNotifications.map((notification) => <span key={notification.event} title={notification.last_error || undefined} className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${notification.status === 'sent' ? 'bg-mipc-green-50 text-mipc-green-800' : notification.status === 'failed' ? 'bg-signal-danger-bg text-signal-danger' : 'bg-signal-warn-bg text-signal-warn'}`}>{notification.event} email · {notification.status}</span>)}
+                    {isEnrolled && <Link href="/admin/students" className="mipc-button-secondary"><UsersIcon className="h-4 w-4" /> Open Student Registry</Link>}
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 rounded-2xl border border-mipc-navy-900/10 bg-[#f7f8f5] p-5 sm:grid-cols-2">
+                  <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">Secondary studies</p><p className="mt-1 text-sm font-semibold text-mipc-navy-950">{app.secondary_field_of_study || 'Legacy application · not recorded'}</p></div>
+                  <div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">National exam result</p><p className="mt-1 text-sm font-semibold text-mipc-navy-950">{app.national_exam_result || 'Legacy application · not recorded'}</p></div>
+                  <div className="sm:col-span-2"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ink-500">Secondary diploma</p>{app.documents_path ? <Link href={`/api/admissions/document/${app.id}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex text-sm font-bold text-mipc-green-700 underline">Open private diploma evidence ↗</Link> : <p className="mt-1 text-sm text-ink-600">No diploma attached to this legacy application.</p>}</div>
                 </div>
 
                 {app.statement && <div className="mt-5 rounded-xl bg-[#f7f8f5] p-4 text-sm italic leading-6 text-ink-700">“{app.statement}”</div>}
 
-                {isPending && (
-                  <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-mipc-navy-900/10 pt-5">
-                    <form action={rejectApplication.bind(null, app.id)}><button type="submit" className="mipc-button-secondary !border-signal-danger/25 !text-signal-danger">Decline admission</button></form>
-                    <form action={approveApplication.bind(null, app.id)}><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><CheckCircleIcon className="h-4 w-4" /> Approve admission</button></form>
-                  </div>
-                )}
+                <div className="mt-6 flex flex-wrap justify-end gap-3 border-t border-mipc-navy-900/10 pt-5">
+                  {hasUnsent && <form action={retryApplicationEmails.bind(null, app.id)}><button type="submit" className="mipc-button-secondary">Retry email</button></form>}
+                  {isPending && <><form action={rejectApplication.bind(null, app.id)}><button type="submit" className="mipc-button-secondary !border-signal-danger/25 !text-signal-danger">Decline admission</button></form><form action={approveApplication.bind(null, app.id)}><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><CheckCircleIcon className="h-4 w-4" /> Approve admission</button></form></>}
+                </div>
               </div>
 
               {isApproved && !isEnrolled && (
                 <div className="border-t border-mipc-navy-900/10 bg-[#f6f8f6] p-5 sm:p-7">
-                  <div className="mb-5">
-                    <p className="text-xs font-bold uppercase tracking-[0.17em] text-mipc-green-700">Enrollment setup</p>
-                    <h3 className="mt-1 font-display text-xl font-bold text-mipc-navy-950">Create the student's official academic identity</h3>
-                    <p className="mt-1 text-sm text-ink-600">Assign the registration number and placement. Submitting this creates or completes the student's portal account.</p>
-                  </div>
+                  <div className="mb-5"><p className="text-xs font-bold uppercase tracking-[0.17em] text-mipc-green-700">Enrollment setup</p><h3 className="mt-1 font-display text-xl font-bold text-mipc-navy-950">Create the student's official academic identity</h3><p className="mt-1 text-sm text-ink-600">Assign the registration number and placement. Submitting this creates or completes the student's portal account.</p></div>
                   <form action={enrollApprovedApplication} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <input type="hidden" name="application_id" value={app.id} />
                     <div><label className="mipc-label" htmlFor={`reg-${app.id}`}>Registration number</label><input id={`reg-${app.id}`} name="registration_number" className="mipc-field uppercase" placeholder="MIPC-2026-00125" required maxLength={40} /></div>
                     <div><label className="mipc-label" htmlFor={`dept-${app.id}`}>Department of study</label><select id={`dept-${app.id}`} name="department_id" className="mipc-field" defaultValue={app.department_id ?? ''} required><option value="" disabled>Select department</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></div>
                     <div><label className="mipc-label" htmlFor={`cohort-${app.id}`}>Cohort / intake</label><select id={`cohort-${app.id}`} name="cohort_id" className="mipc-field" defaultValue=""><option value="">Assign later</option>{cohorts.map((cohort) => { const dept = departments.find((d) => d.id === cohort.department_id); return <option key={cohort.id} value={cohort.id}>{cohort.name}{dept ? ` · ${dept.code}` : ''}</option>; })}</select></div>
                     <div><label className="mipc-label" htmlFor={`year-${app.id}`}>Year of study</label><select id={`year-${app.id}`} name="year_of_study" className="mipc-field" defaultValue="1"><option value="">Assign later</option>{[1,2,3,4,5,6,7,8].map((year) => <option key={year} value={year}>Year {year}</option>)}</select></div>
-                    <div className="sm:col-span-2 lg:col-span-4 flex justify-end"><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><UsersIcon className="h-4 w-4" /> Enroll student & create portal account</button></div>
+                    <div className="flex justify-end sm:col-span-2 lg:col-span-4"><button type="submit" className="mipc-button-primary !bg-mipc-green-700"><UsersIcon className="h-4 w-4" /> Enroll student & create portal account</button></div>
                   </form>
                 </div>
               )}
