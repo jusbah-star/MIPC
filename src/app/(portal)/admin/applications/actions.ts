@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { findAuthUserByEmail } from '@/lib/supabase/admin-users';
 import { rejectApplicationInStore } from '@/lib/data-store';
 import { uuid } from '@/lib/validation';
 
@@ -86,24 +87,38 @@ export async function enrollApprovedApplication(formData: FormData) {
   let studentId: string;
   let createdAuthUser = false;
 
-  const { data: existingProfile } = await (admin as any)
+  const { data: existingProfile, error: existingProfileError } = await (admin as any)
     .from('profiles')
     .select('id, role')
     .ilike('email', email)
     .maybeSingle();
+  if (existingProfileError) throw new Error('Existing MIPC account could not be checked.');
 
   if (existingProfile) {
     if (existingProfile.role !== 'student') throw new Error('This email already belongs to a non-student MIPC account.');
     studentId = existingProfile.id;
   } else {
-    const { data: authData, error: authError } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { full_name: application.full_name }
-    });
-    if (authError || !authData.user) throw new Error(authError?.message || 'Student portal account could not be created.');
-    studentId = authData.user.id;
-    createdAuthUser = true;
+    const existingAuthUser = await findAuthUserByEmail(admin, email);
+
+    if (existingAuthUser) {
+      const { data: linkedProfile, error: linkedProfileError } = await (admin as any)
+        .from('profiles')
+        .select('id, role, email')
+        .eq('id', existingAuthUser.id)
+        .maybeSingle();
+      if (linkedProfileError) throw new Error('Existing sign-in identity could not be verified.');
+      if (linkedProfile) throw new Error('This sign-in identity is already linked to another MIPC profile.');
+      studentId = existingAuthUser.id;
+    } else {
+      const { data: authData, error: authError } = await admin.auth.admin.createUser({
+        email,
+        email_confirm: true,
+        user_metadata: { full_name: application.full_name }
+      });
+      if (authError || !authData.user) throw new Error(authError?.message || 'Student portal account could not be created.');
+      studentId = authData.user.id;
+      createdAuthUser = true;
+    }
   }
 
   const { error: enrollmentError } = await (admin as any).rpc('admin_enroll_application_student', {

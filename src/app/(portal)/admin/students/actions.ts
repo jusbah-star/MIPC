@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { findAuthUserByEmail } from '@/lib/supabase/admin-users';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 
 function text(value: FormDataEntryValue | null, label: string, max = 160) {
@@ -52,17 +53,45 @@ export async function createStudent(formData: FormData) {
     throw new Error('Year of study is invalid.');
   }
 
-  // Supabase Auth is a separate service from Postgres, so create the identity
-  // first and compensate by deleting it if the atomic database transaction fails.
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-    user_metadata: { full_name: fullName }
-  });
-  if (authError || !authData.user) throw new Error(authError?.message || 'Student account could not be created.');
+  const { data: existingProfile, error: existingProfileError } = await (admin as any)
+    .from('profiles')
+    .select('id, role')
+    .ilike('email', email)
+    .maybeSingle();
+  if (existingProfileError) throw new Error('Existing MIPC account could not be checked.');
+  if (existingProfile) {
+    if (existingProfile.role === 'student') throw new Error('A student account already exists for this email address.');
+    throw new Error('This email already belongs to a non-student MIPC account.');
+  }
+
+  let studentId: string;
+  let createdAuthUser = false;
+  const existingAuthUser = await findAuthUserByEmail(admin, email);
+
+  if (existingAuthUser) {
+    const { data: linkedProfile, error: linkedProfileError } = await (admin as any)
+      .from('profiles')
+      .select('id, role, email')
+      .eq('id', existingAuthUser.id)
+      .maybeSingle();
+    if (linkedProfileError) throw new Error('Existing sign-in identity could not be verified.');
+    if (linkedProfile) throw new Error('This sign-in identity is already linked to another MIPC profile.');
+    studentId = existingAuthUser.id;
+  } else {
+    // Supabase Auth is a separate service from Postgres, so create the identity
+    // first and compensate by deleting it if the atomic database transaction fails.
+    const { data: authData, error: authError } = await admin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { full_name: fullName }
+    });
+    if (authError || !authData.user) throw new Error(authError?.message || 'Student account could not be created.');
+    studentId = authData.user.id;
+    createdAuthUser = true;
+  }
 
   const { error: registryError } = await (admin as any).rpc('admin_create_student_profile', {
-    target_student_id: authData.user.id,
+    target_student_id: studentId,
     student_full_name: fullName,
     student_email: email,
     student_registration_number: registrationNumber,
@@ -73,8 +102,10 @@ export async function createStudent(formData: FormData) {
   });
 
   if (registryError) {
-    const { error: cleanupError } = await admin.auth.admin.deleteUser(authData.user.id);
-    if (cleanupError) console.error('Failed to compensate student Auth creation', { userId: authData.user.id, message: cleanupError.message });
+    if (createdAuthUser) {
+      const { error: cleanupError } = await admin.auth.admin.deleteUser(studentId);
+      if (cleanupError) console.error('Failed to compensate student Auth creation', { userId: studentId, message: cleanupError.message });
+    }
     throw new Error(registryError.message);
   }
 
