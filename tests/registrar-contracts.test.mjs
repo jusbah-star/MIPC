@@ -98,6 +98,21 @@ test('student provisioning reuses orphaned Supabase Auth identities safely', asy
   assert.match(helper, /user\.email\?\.trim\(\)\.toLowerCase\(\) === normalizedEmail/);
   assert.match(studentActions, /findAuthUserByEmail\(admin, email\)/);
   assert.match(admissionActions, /findAuthUserByEmail\(admin, email\)/);
-  assert.match(studentActions, /if \(linkedProfile\) throw new Error\('This sign-in identity is already linked to another MIPC profile\.'\)/);
+  assert.match(studentActions, /if \(linkedProfile\.role === 'student'\) redirectToRegistry\('student-exists', linkedProfile\.id\)/);
+  assert.match(studentActions, /redirectToRegistry\('email-in-use'\)/);
   assert.match(admissionActions, /if \(linkedProfile\) throw new Error\('This sign-in identity is already linked to another MIPC profile\.'\)/);
+});
+
+test('student registry treats expected duplicate submissions as notices instead of fatal errors', async () => {
+  const studentActions = await source('src/app/(portal)/admin/students/actions.ts');
+  const studentPage = await source('src/app/(portal)/admin/students/page.tsx');
+
+  assert.match(studentActions, /redirectToRegistry\('student-exists', existingProfile\.id\)/);
+  assert.match(studentActions, /redirectToRegistry\('registration-in-use'\)/);
+  assert.match(studentActions, /redirectToRegistry\('student-created', studentId\)/);
+  assert.doesNotMatch(studentActions, /throw new Error\('A student account already exists for this email address\.'\)/);
+  assert.match(studentPage, /Student already exists/);
+  assert.match(studentPage, /No duplicate was created/);
+  assert.match(studentPage, /open=\{highlightedStudentId === student\.id\}/);
+  assert.match(studentPage, /secure sign-in link is sent/);
 });
