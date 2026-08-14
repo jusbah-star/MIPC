@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { findAuthUserByEmail } from '@/lib/supabase/admin-users';
 import { rejectApplicationInStore } from '@/lib/data-store';
+import { deliverApplicationNotifications } from '@/lib/application-mail';
 import { uuid } from '@/lib/validation';
 
 async function assertAdmin() {
@@ -44,9 +45,7 @@ function optionalText(value: FormDataEntryValue | null, max = 160) {
 
 export async function approveApplication(rawApplicationId: string) {
   const actor = await assertAdmin();
-  if (!isSupabaseConfigured()) {
-    throw new Error('Live admissions approval requires the connected database.');
-  }
+  if (!isSupabaseConfigured()) throw new Error('Live admissions approval requires the connected database.');
 
   const applicationId = uuid(rawApplicationId, 'Application');
   const admin = createAdminClient();
@@ -56,6 +55,16 @@ export async function approveApplication(rawApplicationId: string) {
   });
   if (error) throw new Error(error.message);
 
+  await deliverApplicationNotifications(admin as any, applicationId);
+  refreshAdmissions();
+}
+
+export async function retryApplicationEmails(rawApplicationId: string) {
+  await assertAdmin();
+  if (!isSupabaseConfigured()) return;
+  const applicationId = uuid(rawApplicationId, 'Application');
+  const admin = createAdminClient();
+  await deliverApplicationNotifications(admin as any, applicationId);
   refreshAdmissions();
 }
 
@@ -156,5 +165,6 @@ export async function rejectApplication(rawApplicationId: string) {
     reviewer_id: actor.id
   } as any);
   if (error) throw new Error(error.message);
+  await deliverApplicationNotifications(admin as any, applicationId);
   refreshAdmissions();
 }
