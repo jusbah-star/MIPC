@@ -39,6 +39,12 @@ function refreshStudentRegistry() {
   revalidatePath('/admin');
 }
 
+function redirectToRegistry(notice: string, studentId?: string): never {
+  const params = new URLSearchParams({ notice });
+  if (studentId) params.set('student', studentId);
+  redirect(`/admin/students?${params.toString()}${studentId ? `#student-${studentId}` : ''}`);
+}
+
 export async function createStudent(formData: FormData) {
   const actor = await requireAdmin();
   const admin = createAdminClient();
@@ -60,8 +66,8 @@ export async function createStudent(formData: FormData) {
     .maybeSingle();
   if (existingProfileError) throw new Error('Existing MIPC account could not be checked.');
   if (existingProfile) {
-    if (existingProfile.role === 'student') throw new Error('A student account already exists for this email address.');
-    throw new Error('This email already belongs to a non-student MIPC account.');
+    if (existingProfile.role === 'student') redirectToRegistry('student-exists', existingProfile.id);
+    redirectToRegistry('email-in-use');
   }
 
   let studentId: string;
@@ -75,7 +81,10 @@ export async function createStudent(formData: FormData) {
       .eq('id', existingAuthUser.id)
       .maybeSingle();
     if (linkedProfileError) throw new Error('Existing sign-in identity could not be verified.');
-    if (linkedProfile) throw new Error('This sign-in identity is already linked to another MIPC profile.');
+    if (linkedProfile) {
+      if (linkedProfile.role === 'student') redirectToRegistry('student-exists', linkedProfile.id);
+      redirectToRegistry('email-in-use');
+    }
     studentId = existingAuthUser.id;
   } else {
     // Supabase Auth is a separate service from Postgres, so create the identity
@@ -106,10 +115,15 @@ export async function createStudent(formData: FormData) {
       const { error: cleanupError } = await admin.auth.admin.deleteUser(studentId);
       if (cleanupError) console.error('Failed to compensate student Auth creation', { userId: studentId, message: cleanupError.message });
     }
-    throw new Error(registryError.message);
+
+    const message = String(registryError.message ?? '');
+    if (/registration number is already assigned/i.test(message)) redirectToRegistry('registration-in-use');
+    if (/email address is already assigned/i.test(message)) redirectToRegistry('student-exists');
+    throw new Error(message || 'Student account could not be created.');
   }
 
   refreshStudentRegistry();
+  redirectToRegistry('student-created', studentId);
 }
 
 export async function updateStudent(formData: FormData) {
