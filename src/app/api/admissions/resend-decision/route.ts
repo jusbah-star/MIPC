@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     await enforceRateLimit(`admission-decision-resend:${reference}:${email}`, 3, 60 * 60 * 1000);
 
     const admin = createAdminClient();
-    const { data: application, error: applicationError } = await admin
+    const db = admin as any;
+    const { data: application, error: applicationError } = await db
       .from('applications')
       .select('id,email,status')
       .eq('id', reference)
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     }
 
     const event = application.status === 'approved' ? 'approved' : 'rejected';
-    const { data: existing, error: lookupError } = await admin
+    const { data: existing, error: lookupError } = await db
       .from('application_email_notifications')
       .select('id')
       .eq('application_id', application.id)
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     if (existing?.id) {
-      const { error } = await admin
+      const { error } = await db
         .from('application_email_notifications')
         .update({
           recipient_email: application.email,
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
         .eq('id', existing.id);
       if (error) throw error;
     } else {
-      const { error } = await admin.from('application_email_notifications').insert({
+      const { error } = await db.from('application_email_notifications').insert({
         application_id: application.id,
         event,
         recipient_email: application.email,
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
 
     await deliverApplicationNotifications(admin, application.id);
 
-    const { data: result } = await admin
+    const { data: result } = await db
       .from('application_email_notifications')
       .select('status,last_error')
       .eq('application_id', application.id)
