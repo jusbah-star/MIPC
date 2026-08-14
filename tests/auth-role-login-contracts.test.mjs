@@ -15,23 +15,28 @@ test('student OTP requests retain registration-number plus email verification', 
   assert.match(requestCodeSource, /\.eq\('role', 'student'\)/);
 });
 
-test('non-student OTP requests use email with a server-side role match', () => {
-  assert.match(requestCodeSource, /\.eq\('email', email\)[\s\S]*\.eq\('role', portal\)/);
-  assert.match(requestCodeSource, /profile\.account_status === 'active'/);
-  assert.match(requestCodeSource, /profile\.role === portal/);
+test('governance staff share one non-enumerating staff login lookup', () => {
+  assert.match(requestCodeSource, /portal === 'staff'/);
+  assert.match(requestCodeSource, /\.in\('role', STAFF_ROLES\)/);
+  assert.match(requestCodeSource, /profileCanAccessPortal\(profile, portal\)/);
   assert.match(requestCodeSource, /shouldCreateUser: false/);
 });
 
-test('login UI exposes separate portal choices', () => {
+test('login UI exposes student, staff and administrator choices', () => {
   assert.match(loginSource, /role: 'student', label: 'Student'/);
-  assert.match(loginSource, /role: 'lecturer', label: 'Staff \/ Lecturer'/);
+  assert.match(loginSource, /role: 'staff', label: 'Staff'/);
   assert.match(loginSource, /role: 'admin', label: 'Administrator'/);
   assert.match(loginSource, /portal === 'student' \? \{ registrationNumber \} : \{\}/);
+  assert.match(loginSource, /isStaffRole\(role\)/);
 });
 
-test('selected tab is not trusted as the authenticated role', () => {
-  assert.match(loginSource, /const role = p\.role as PortalRole/);
-  assert.match(loginSource, /if \(role !== portal\)[\s\S]*supabase\.auth\.signOut\(\)/);
-  assert.match(proxySource, /const requiredRole = PORTAL_ROLES\[portalSegment\]/);
-  assert.match(proxySource, /\(profile as any\)\.role !== requiredRole/);
+test('actual stored governance role determines post-login destination', () => {
+  assert.match(loginSource, /const actualRole = p\.role as AccountRole/);
+  assert.match(loginSource, /roleMatchesPortal\(actualRole, portal\)/);
+  assert.match(loginSource, /next\.startsWith\(`\/\$\{actualRole\}`\)/);
+});
+
+test('proxy protects every governance workspace and allows only explicit oversight', () => {
+  for (const segment of ['student','lecturer','hod','registrar','finance','admin']) assert.match(proxySource, new RegExp(`${segment}: '${segment}'`));
+  assert.match(proxySource, /roleCanOpenSegment\(storedRole, portalSegment\)/);
 });

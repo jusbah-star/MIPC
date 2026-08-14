@@ -1,218 +1,25 @@
 import Link from 'next/link';
-import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
-import { dataStore } from '@/lib/data-store';
-import {
-  ShieldCheckIcon,
-  AwardIcon,
-  UsersIcon,
-  BookOpenIcon,
-  ChevronRightIcon,
-  CheckCircleIcon,
-  AlertCircleIcon,
-  FileTextIcon
-} from '@/components/icons';
+import { AwardIcon, BookOpenIcon, ChevronRightIcon, FileTextIcon, ShieldCheckIcon, UsersIcon } from '@/components/icons';
+import { createClient } from '@/lib/supabase/server';
 
-export default async function AdminDashboard() {
-  const currentAdmin = dataStore.currentUser ?? dataStore.profiles.find((p) => p.role === 'admin');
-  let displayName = currentAdmin?.full_name ?? 'MIPC registrar';
-
-  let pendingAppsCount = dataStore.applications.filter((a) => a.status === 'pending').length;
-  let studentsCount = dataStore.profiles.filter((p) => p.role === 'student').length;
-  let facultyCount = dataStore.profiles.filter((p) => p.role === 'lecturer').length;
-  let auditCount = dataStore.audit_logs.length;
-  let recentAudit = dataStore.audit_logs.slice(0, 4);
-  let pendingApps = dataStore.applications.filter((a) => a.status === 'pending');
-
-  if (isSupabaseConfigured()) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Administrator authentication required.');
-    const [profileResult, pendingResult, studentResult, facultyResult, auditResult] = await Promise.all([
-        supabase.from('profiles').select('full_name').eq('id', user.id).single(),
-        supabase.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'student'),
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'lecturer'),
-        supabase.from('audit_log').select('*', { count: 'exact' }).order('created_at', { ascending: false }).limit(4)
-      ]);
-    const error = profileResult.error ?? pendingResult.error ?? studentResult.error ?? facultyResult.error ?? auditResult.error;
-    if (error) throw new Error(error.message);
-    displayName = (profileResult.data as any).full_name;
-    pendingAppsCount = pendingResult.count ?? 0;
-    studentsCount = studentResult.count ?? 0;
-    facultyCount = facultyResult.count ?? 0;
-    auditCount = auditResult.count ?? 0;
-    recentAudit = (auditResult.data ?? []) as any;
-    const { data: applicationRows, error: applicationError } = await supabase.from('applications').select('*').eq('status', 'pending').order('submitted_at').limit(5);
-    if (applicationError) throw new Error(applicationError.message);
-    pendingApps = (applicationRows ?? []) as any;
-  }
-
-  return (
-    <div className="space-y-8">
-      {/* Welcome Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-ink-950 to-ink-900 text-white rounded-2xl p-6 sm:p-8 shadow-academic border border-ink-800">
-        <div>
-          <span className="text-xs font-mono uppercase tracking-widest text-brass-400 font-semibold block mb-1">
-            Office of the Academic Registrar
-          </span>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
-            Administrative workspace · {displayName}
-          </h1>
-          <p className="mt-1 text-xs sm:text-sm text-ink-500 font-mono">
-            Direct institutional admissions, govern user credentials, and audit security events.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/admin/applications"
-            className="rounded-lg bg-brass-500 px-4 py-2 text-xs sm:text-sm font-semibold text-ink-950 hover:bg-brass-400 transition-colors shadow-sm flex items-center gap-1.5"
-          >
-            <AwardIcon className="w-4 h-4" />
-            <span>Admissions Queue ({pendingAppsCount})</span>
-          </Link>
-          <Link
-            href="/admin/audit"
-            className="rounded-lg bg-white/10 border border-white/20 px-4 py-2 text-xs sm:text-sm font-medium text-white hover:bg-white/20 transition-colors flex items-center gap-1.5"
-          >
-            <FileTextIcon className="w-4 h-4 text-brass-400" />
-            <span>Audit Trail</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs">
-          <div className="flex items-center justify-between text-ink-500 mb-2">
-            <span className="text-xs font-mono uppercase tracking-wider font-semibold">Pending Dossiers</span>
-            <AwardIcon className="w-4 h-4 text-brass-600" />
-          </div>
-          <div className="font-display text-2xl font-bold text-brass-700">{pendingAppsCount}</div>
-          <p className="text-[11px] text-ink-600 mt-1 font-mono">Awaiting Dean review</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs">
-          <div className="flex items-center justify-between text-ink-500 mb-2">
-            <span className="text-xs font-mono uppercase tracking-wider font-semibold">Matriculated Students</span>
-            <UsersIcon className="w-4 h-4 text-brass-600" />
-          </div>
-          <div className="font-display text-2xl font-bold text-ink-950">{studentsCount}</div>
-          <p className="text-[11px] text-signal-ok mt-1 font-mono font-medium">Registered student accounts</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs">
-          <div className="flex items-center justify-between text-ink-500 mb-2">
-            <span className="text-xs font-mono uppercase tracking-wider font-semibold">Senior Faculty</span>
-            <BookOpenIcon className="w-4 h-4 text-brass-600" />
-          </div>
-          <div className="font-display text-2xl font-bold text-ink-950">{facultyCount}</div>
-          <p className="text-[11px] text-ink-600 mt-1 font-mono">Registered lecturer accounts</p>
-        </div>
-
-        <div className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs">
-          <div className="flex items-center justify-between text-ink-500 mb-2">
-            <span className="text-xs font-mono uppercase tracking-wider font-semibold">Audit Logs</span>
-            <ShieldCheckIcon className="w-4 h-4 text-brass-600" />
-          </div>
-          <div className="font-display text-2xl font-bold text-ink-950">{auditCount}</div>
-          <p className="text-[11px] text-signal-ok mt-1 font-mono font-medium">Security Verified</p>
-        </div>
-      </div>
-
-      {/* Main Grid: Pending Applications & Audit Trail */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Pending Applications (2 cols) */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-ink-950">
-              Candidate Applications Awaiting Action
-            </h2>
-            <Link
-              href="/admin/applications"
-              className="text-xs font-mono text-brass-600 hover:text-brass-700 flex items-center gap-1"
-            >
-              <span>Full Admissions Pipeline</span>
-              <ChevronRightIcon className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-3">
-            {pendingApps.map((app) => (
-              <div
-                key={app.id}
-                className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-mono font-bold text-brass-700 bg-brass-400/15 px-2 py-0.5 rounded">
-                      Dossier #{app.id.slice(-6).toUpperCase()}
-                    </span>
-                    <span className="text-xs font-mono text-ink-500">
-                      Applied {new Date(app.submitted_at).toLocaleDateString('en-GB')}
-                    </span>
-                  </div>
-                  <h3 className="font-display text-base font-bold text-ink-950">
-                    {app.full_name}
-                  </h3>
-                  <p className="text-xs font-mono text-ink-600">
-                    {app.email} {app.phone ? `· ${app.phone}` : ''}
-                  </p>
-                </div>
-
-                <Link
-                  href="/admin/applications"
-                  className="rounded-lg bg-ink-900 px-4 py-2 text-xs font-medium text-white hover:bg-ink-800 transition-colors self-start sm:self-auto flex items-center gap-1 shrink-0"
-                >
-                  <span>Review Dossier</span>
-                  <ChevronRightIcon className="w-3.5 h-3.5 text-brass-400" />
-                </Link>
-              </div>
-            ))}
-
-            {pendingApps.length === 0 && (
-              <div className="bg-white rounded-xl border border-ink-900/10 p-8 text-center text-xs font-mono text-ink-500">
-                Admissions queue is clear. No pending applications.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Security & Audit Snapshot (1 col) */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-ink-950">
-              Live Security Trail
-            </h2>
-            <Link
-              href="/admin/audit"
-              className="text-xs font-mono text-brass-600 hover:text-brass-700"
-            >
-              Full Log
-            </Link>
-          </div>
-
-          <div className="bg-white rounded-xl border border-ink-900/10 p-5 shadow-xs space-y-3">
-            {recentAudit.map((log) => (
-              <div key={log.id} className="pb-3 border-b border-parchment-200 last:border-0 last:pb-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-mono font-bold uppercase text-brass-700 bg-brass-400/15 px-1.5 py-0.2 rounded">
-                    {log.action}
-                  </span>
-                  <span className="text-[10px] font-mono text-ink-500">
-                    {new Date(log.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-                <p className="text-xs font-medium text-ink-900">
-                  Target: {log.target_table} ({log.target_id.slice(-6)})
-                </p>
-                <p className="text-[10px] font-mono text-ink-500">
-                  Actor: {log.actor_id}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+export default async function AdminDashboard(){
+  const supabase=await createClient(); const {data:{user}}=await supabase.auth.getUser(); if(!user)throw new Error('Principal authentication required.');
+  const [profileResult,profilesResult,applicationsResult,financeResult,auditResult]=await Promise.all([
+    supabase.from('profiles').select('full_name').eq('id',user.id).single(),
+    supabase.from('profiles').select('id,role,account_status'),
+    supabase.from('applications').select('id,status,enrolled_student_id'),
+    (supabase as any).from('student_finance_accounts').select('student_id,status,amount_due,amount_paid'),
+    supabase.from('audit_log').select('id,actor_id,action,target_table,target_id,created_at').order('created_at',{ascending:false}).limit(6)
+  ]);
+  const error=profileResult.error||profilesResult.error||applicationsResult.error||financeResult.error||auditResult.error;if(error)throw new Error('Principal overview could not be loaded.');
+  const profiles:any[]=profilesResult.data??[];const applications:any[]=applicationsResult.data??[];const finance:any[]=financeResult.data??[];const audits:any[]=auditResult.data??[];const name=(profileResult.data as any)?.full_name??'MIPC Principal';
+  const count=(role:string)=>profiles.filter((p)=>p.role===role&&p.account_status==='active').length;const pending=applications.filter((a)=>['pending','under_review'].includes(a.status)).length;const registered=profiles.filter((p)=>p.role==='student'&&p.account_status==='active').length;const uncleared=finance.filter((a)=>!['cleared','waived'].includes(a.status)).length;
+  return <div className="space-y-8"><section className="rounded-2xl bg-gradient-to-r from-mipc-navy-950 to-mipc-green-900 p-6 text-white shadow-academic sm:p-8"><p className="text-xs font-bold uppercase tracking-[.18em] text-mipc-green-200">Office of the Principal</p><h1 className="mt-2 font-display text-3xl font-bold">Institutional oversight · {name}</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">Oversee academic departments, student registration, finance, staff access and the institutional audit trail. Operational responsibility remains delegated to HOD, Registrar and Finance roles.</p></section>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric label="Registered students" value={registered}/><Metric label="Active HODs" value={count('hod')}/><Metric label="Active lecturers" value={count('lecturer')}/><Metric label="Finance not cleared" value={uncleared}/></div>
+    <div className="grid gap-5 lg:grid-cols-3"><GovernanceCard href="/hod" title="Academic departments" body="Oversee HOD control of lecturers, classes and course teaching assignments." icon={<BookOpenIcon className="h-6 w-6"/>}/><GovernanceCard href="/registrar" title="Registrar" body={`${pending} application(s) awaiting registration action. Review the official student registration process.`} icon={<AwardIcon className="h-6 w-6"/>}/><GovernanceCard href="/finance" title="Finance" body="Review assessment, payments, balances and student financial clearance across the college." icon={<FileTextIcon className="h-6 w-6"/>}/></div>
+    <div className="grid gap-5 lg:grid-cols-2"><GovernanceCard href="/admin/users" title="Staff & user governance" body={`Provision Lecturer, HOD, Registrar and Finance identities. Active Registrar: ${count('registrar')} · Finance: ${count('finance')}.`} icon={<UsersIcon className="h-6 w-6"/>}/><GovernanceCard href="/admin/audit" title="Security & audit" body="Inspect the immutable institutional activity trail for governance and academic actions." icon={<ShieldCheckIcon className="h-6 w-6"/>}/></div>
+    <section className="mipc-panel overflow-hidden"><div className="border-b border-parchment-200 p-5"><h2 className="font-display text-xl font-bold text-ink-950">Recent institutional activity</h2></div><div className="divide-y divide-parchment-200">{audits.map((log)=><div key={log.id} className="flex flex-col gap-1 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-ink-950">{log.action}</p><p className="text-xs text-ink-600">{log.target_table} · {String(log.target_id).slice(-8)}</p></div><p className="text-xs font-mono text-ink-500">{new Date(log.created_at).toLocaleString('en-GB')}</p></div>)}</div></section>
+  </div>;
 }
+function Metric({label,value}:{label:string;value:number}){return <div className="mipc-panel p-5"><p className="text-3xl font-bold text-ink-950">{value}</p><p className="mt-1 text-xs font-bold uppercase tracking-wider text-ink-600">{label}</p></div>}
+function GovernanceCard({href,title,body,icon}:{href:string;title:string;body:string;icon:React.ReactNode}){return <Link href={href} className="mipc-panel group p-6"><span className="inline-flex rounded-xl bg-mipc-green-100 p-3 text-mipc-green-800">{icon}</span><h2 className="mt-4 font-display text-xl font-bold text-ink-950">{title}</h2><p className="mt-2 text-sm leading-6 text-ink-600">{body}</p><span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-mipc-green-700">Open oversight <ChevronRightIcon className="h-4 w-4"/></span></Link>}

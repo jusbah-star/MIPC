@@ -1,8 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
-import type { UserRole } from '@/lib/database.types';
+import type { AccountRole } from '@/lib/roles';
+import { isAccountRole, roleCanOpenSegment } from '@/lib/roles';
 
-const PORTAL_ROLES: Record<string, UserRole> = { student: 'student', lecturer: 'lecturer', admin: 'admin' };
+const PORTAL_ROLES: Record<string, AccountRole> = {
+  student: 'student',
+  lecturer: 'lecturer',
+  hod: 'hod',
+  registrar: 'registrar',
+  finance: 'finance',
+  admin: 'admin'
+};
 function redirectWithCookies(url: URL | string, sourceResponse: NextResponse) { const redirectResponse = NextResponse.redirect(url); sourceResponse.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie.name, cookie.value)); return redirectResponse; }
 function backendUnavailable() { return new NextResponse('MIPC portal is temporarily unavailable because its authentication backend is not configured.', { status: 503, headers: { 'Cache-Control': 'no-store' } }); }
 
@@ -21,16 +29,14 @@ export async function proxy(request: NextRequest) {
   if (!user) { const redirectUrl = new URL('/login', request.url); redirectUrl.searchParams.set('next', path); return redirectWithCookies(redirectUrl, response); }
   const { data: profile, error: profileError } = await supabase.from('profiles').select('role, account_status').eq('id', user.id).single();
   if (profileError) return backendUnavailable();
-  if (!profile || (profile as any).account_status !== 'active') {
+  const storedRole = (profile as any)?.role;
+  if (!profile || (profile as any).account_status !== 'active' || !isAccountRole(storedRole)) {
     const unavailableUrl = new URL('/login', request.url);
     unavailableUrl.searchParams.set('error', (profile as any)?.account_status === 'suspended' ? 'account_suspended' : 'account_unavailable');
     return redirectWithCookies(unavailableUrl, response);
   }
-  const requiredRole = PORTAL_ROLES[portalSegment];
-  if ((profile as any).role !== requiredRole) {
-    const fallbackRole = (profile as any).role;
-    const fallback = fallbackRole && fallbackRole in PORTAL_ROLES ? `/${fallbackRole}` : '/login';
-    return redirectWithCookies(new URL(fallback, request.url), response);
+  if (!roleCanOpenSegment(storedRole, portalSegment)) {
+    return redirectWithCookies(new URL(`/${storedRole}`, request.url), response);
   }
   return response;
 }

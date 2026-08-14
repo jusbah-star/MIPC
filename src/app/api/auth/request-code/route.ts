@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server';
 import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import { createAuthDeliveryClient } from '@/lib/supabase/auth-delivery';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
-import { GENERIC_SIGN_IN_MESSAGE, normalizeEmail, normalizeRegistrationNumber, portalIdentityKey } from '@/lib/auth-policy';
+import { GENERIC_SIGN_IN_MESSAGE, normalizeEmail, normalizeRegistrationNumber, portalIdentityKey, profileCanAccessPortal, STAFF_ROLES } from '@/lib/auth-policy';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 
-type PortalRole = 'student' | 'lecturer' | 'admin';
+type PortalRole = 'student' | 'staff' | 'admin';
 const PRODUCTION_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://mipc-rosy.vercel.app';
 function requestedPortal(value: unknown): PortalRole {
   const portal = requiredText(value, 'Portal', 20, 5).trim().toLowerCase();
-  if (portal !== 'student' && portal !== 'lecturer' && portal !== 'admin') throw new ValidationError('Choose a valid MIPC portal.');
+  if (portal !== 'student' && portal !== 'staff' && portal !== 'admin') throw new ValidationError('Choose a valid MIPC portal.');
   return portal;
 }
 function genericSuccess() { return NextResponse.json({ ok: true, mode: 'link', message: GENERIC_SIGN_IN_MESSAGE }, { status: 200 }); }
@@ -31,17 +31,19 @@ export async function POST(request: Request) {
       registrationNumber = normalizeRegistrationNumber(requiredText(body.registrationNumber, 'Registration number', 40, 4));
       const result = await admin.from('profiles').select('id, email, account_status, registration_number, role').eq('registration_number', registrationNumber).eq('role', 'student').maybeSingle();
       profile = result.data; lookupError = result.error;
-      const matchesStudent = profile && normalizeEmail(profile.email) === email && profile.account_status === 'active' && profile.role === 'student';
-      if (!lookupError && !matchesStudent) return genericSuccess();
-    } else {
-      const result = await admin.from('profiles').select('id, email, account_status, role').eq('email', email).eq('role', portal).maybeSingle();
+    } else if (portal === 'staff') {
+      const result = await admin.from('profiles').select('id, email, account_status, role').ilike('email', email).in('role', STAFF_ROLES).maybeSingle();
       profile = result.data; lookupError = result.error;
-      const matchesStaff = profile && normalizeEmail(profile.email) === email && profile.account_status === 'active' && profile.role === portal;
-      if (!lookupError && !matchesStaff) return genericSuccess();
+    } else {
+      const result = await admin.from('profiles').select('id, email, account_status, role').ilike('email', email).eq('role', 'admin').maybeSingle();
+      profile = result.data; lookupError = result.error;
     }
 
     await enforceRateLimit(`portal-link-account:${portalIdentityKey(portal, email, registrationNumber)}`, 5, 15 * 60 * 1000);
     if (lookupError) return NextResponse.json({ error: 'Campus sign-in is temporarily unavailable.' }, { status: 503 });
+    const matches = Boolean(profileCanAccessPortal(profile, portal) && normalizeEmail(profile?.email) === email && (portal !== 'student' || normalizeRegistrationNumber(profile?.registration_number) === registrationNumber));
+    if (!matches) return genericSuccess();
+
     const baseUrl = process.env.NODE_ENV === 'production' ? PRODUCTION_SITE_URL : new URL(request.url).origin;
     const supabase = createAuthDeliveryClient();
     const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: new URL('/login', baseUrl).toString() } });
