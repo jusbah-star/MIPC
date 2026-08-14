@@ -62,8 +62,15 @@ export async function POST(request: Request) {
     if (!matches) return genericSuccess();
 
     const baseUrl = process.env.NODE_ENV === 'production' ? PRODUCTION_SITE_URL : new URL(request.url).origin;
+    const confirmationUrl = new URL('/auth/confirm', baseUrl).toString();
     const supabase = createAuthDeliveryClient();
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: new URL('/login', baseUrl).toString() } });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: confirmationUrl
+      }
+    });
     if (error) console.error('Portal sign-in link dispatch failed', { message: error.message, portal });
     return genericSuccess();
   } catch (error) {
