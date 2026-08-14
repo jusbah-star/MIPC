@@ -36,8 +36,16 @@ export default function PrivacyPage() {
           <p className="mipc-eyebrow">Privacy & trust</p>
           <h1 className="mt-3 max-w-3xl text-5xl font-bold tracking-tight">Your academic journey deserves responsible data care.</h1>
           <p className="mt-6 max-w-3xl text-lg leading-8 text-ink-700">This digital campus is designed around Rwanda’s Law Nº 058/2021 relating to the protection of personal data and privacy. MIPC should publish its final controller registration details, retention schedule and appointed data protection contact before production launch.</p>
+
+          <div className="mt-8 rounded-2xl border border-mipc-navy-900/10 bg-[#f7f8f5] p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-mipc-green-700">Admissions evidence</p>
+            <h2 className="mt-2 text-xl font-bold text-mipc-navy-950">What an applicant provides</h2>
+            <p className="mt-2 text-sm leading-6 text-ink-700">For admissions, MIPC may collect identity/contact details, the programme requested, the applicant’s secondary-school field or combination, national-examination result, statement of purpose and a copy of the secondary diploma. These records are used to review eligibility, make an admissions decision and complete registration when the applicant is accepted.</p>
+            <p className="mt-3 text-sm leading-6 text-ink-700">Diploma files are stored privately. Only authorized admissions staff such as the Registrar and Principal/Administrator can request a short-lived review link through the portal.</p>
+          </div>
+
           <div className="mt-10 grid gap-4 sm:grid-cols-2">{rights.map(([title, text]) => <div key={title} className="mipc-card p-5"><CheckCircleIcon className="h-5 w-5 text-mipc-green-700" /><h2 className="mt-3 text-lg font-bold">{title}</h2><p className="mt-1 text-sm leading-6 text-ink-700">{text}</p></div>)}</div>
-          <div className="mt-10 rounded-2xl bg-mipc-green-950 p-7 text-white"><ShieldCheckIcon className="h-8 w-8 text-brass-300" /><h2 className="mt-4 text-2xl font-bold">How this platform protects records</h2><ul className="mt-4 grid gap-3 text-sm leading-6 text-white/75"><li>Role-based access enforced in the database.</li><li>Server-authoritative examination timing and scoring.</li><li>Append-only audit events for sensitive academic actions.</li><li>Minimum necessary information shown in admissions tracking.</li></ul></div>
+          <div className="mt-10 rounded-2xl bg-mipc-green-950 p-7 text-white"><ShieldCheckIcon className="h-8 w-8 text-brass-300" /><h2 className="mt-4 text-2xl font-bold">How this platform protects records</h2><ul className="mt-4 grid gap-3 text-sm leading-6 text-white/75"><li>Role-based access enforced in the database.</li><li>Private admissions document storage with temporary review links.</li><li>Server-authoritative examination timing and scoring.</li><li>Append-only audit events for sensitive academic actions.</li><li>Minimum necessary information shown in admissions tracking.</li></ul></div>
           <p className="mt-6 text-xs leading-5 text-ink-600">Official guidance: <a className="font-semibold text-mipc-green-700 underline" href="https://dpo.gov.rw/dpp-law/rights-of-the-data-subject" target="_blank" rel="noreferrer">Rwanda DPO data-subject rights</a> and <a className="font-semibold text-mipc-green-700 underline" href="https://www.hec.gov.rw/publications/policies" target="_blank" rel="noreferrer">HEC policies</a>. This page supports compliance operations; it is not legal certification.</p>
         </div>
 
