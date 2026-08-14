@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { findAuthUserByEmail } from '@/lib/supabase/admin-users';
 import { requireActiveGovernanceRole } from '@/lib/governance-server';
+import { deliverApplicationNotifications } from '@/lib/application-mail';
 import { requiredText } from '@/lib/validation';
 
 function optional(value: FormDataEntryValue | null, max = 160) { const text=String(value??'').trim(); if(!text)return null; if(text.length>max)throw new Error('A value is too long.'); return text; }
@@ -12,14 +13,25 @@ export async function approveApplication(formData: FormData) {
   const { user, admin } = await requireActiveGovernanceRole(['registrar','admin']);
   const applicationId = requiredText(formData.get('application_id'),'Application',64);
   const { error } = await admin.rpc('record_application_approval',{target_application_id:applicationId,reviewer_id:user.id});
-  if(error) throw new Error(error.message); refreshRegistrar();
+  if(error) throw new Error(error.message);
+  await deliverApplicationNotifications(admin, applicationId);
+  refreshRegistrar();
 }
 
 export async function rejectApplication(formData: FormData) {
   const { user, admin } = await requireActiveGovernanceRole(['registrar','admin']);
   const applicationId = requiredText(formData.get('application_id'),'Application',64);
   const { error } = await admin.rpc('reject_application',{target_application_id:applicationId,reviewer_id:user.id});
-  if(error) throw new Error(error.message); refreshRegistrar();
+  if(error) throw new Error(error.message);
+  await deliverApplicationNotifications(admin, applicationId);
+  refreshRegistrar();
+}
+
+export async function retryApplicationEmails(formData: FormData) {
+  const { admin } = await requireActiveGovernanceRole(['registrar','admin']);
+  const applicationId = requiredText(formData.get('application_id'),'Application',64);
+  await deliverApplicationNotifications(admin, applicationId);
+  refreshRegistrar();
 }
 
 export async function registerApprovedApplicant(formData: FormData) {
