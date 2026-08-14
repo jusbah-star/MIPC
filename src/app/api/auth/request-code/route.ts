@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
-import { createAuthDeliveryClient } from '@/lib/supabase/auth-delivery';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
+import { sendPortalSignInEmail } from '@/lib/portal-auth-mail';
 import { GENERIC_SIGN_IN_MESSAGE, normalizeEmail, normalizeRegistrationNumber, portalIdentityKey, profileCanAccessPortal, STAFF_ROLES } from '@/lib/auth-policy';
 import { emailAddress, jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 
@@ -45,9 +45,22 @@ export async function POST(request: Request) {
     if (!matches) return genericSuccess();
 
     const baseUrl = process.env.NODE_ENV === 'production' ? PRODUCTION_SITE_URL : new URL(request.url).origin;
-    const supabase = createAuthDeliveryClient();
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false, emailRedirectTo: new URL('/login', baseUrl).toString() } });
-    if (error) console.error('Portal sign-in link dispatch failed', { message: error.message, portal });
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({ type: 'magiclink', email });
+    const tokenHash = linkData?.properties?.hashed_token;
+    if (linkError || !tokenHash) {
+      console.error('Portal sign-in token generation failed', { message: linkError?.message || 'Missing token hash', portal });
+      return genericSuccess();
+    }
+
+    const confirmationUrl = new URL('/auth/confirm', baseUrl);
+    confirmationUrl.searchParams.set('token_hash', tokenHash);
+    confirmationUrl.searchParams.set('type', 'email');
+    try {
+      const handoff = await sendPortalSignInEmail({ to: email, signInUrl: confirmationUrl.toString() });
+      console.info('Portal sign-in email accepted by MIPC SMTP', { portal, messageId: handoff.messageId, providerResponse: handoff.providerResponse });
+    } catch (error) {
+      console.error('Portal sign-in email delivery failed', { portal, message: error instanceof Error ? error.message : 'Unknown SMTP delivery error' });
+    }
     return genericSuccess();
   } catch (error) {
     if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
