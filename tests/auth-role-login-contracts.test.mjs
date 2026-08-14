@@ -19,12 +19,15 @@ test('student sign-in retains registration-number plus email verification', () =
   }
 });
 
-test('governance staff share one non-enumerating staff login lookup', () => {
+test('governance staff share one non-enumerating staff login lookup and SMTP delivery contract', () => {
   for (const source of [requestCodeSource, sendLinkSource]) {
     assert.match(source, /portal === 'staff'/);
     assert.match(source, /\.in\('role', STAFF_ROLES\)/);
     assert.match(source, /profileCanAccessPortal\(profile, portal\)/);
-    assert.match(source, /shouldCreateUser: false/);
+    assert.match(source, /admin\.auth\.admin\.generateLink\(/);
+    assert.match(source, /type: 'magiclink'/);
+    assert.match(source, /sendPortalSignInEmail/);
+    assert.match(source, /genericSuccess\(\)/);
   }
 });
 
