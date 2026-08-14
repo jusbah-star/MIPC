@@ -7,7 +7,24 @@ import { deliverApplicationNotifications } from '@/lib/application-mail';
 import { requiredText } from '@/lib/validation';
 
 function optional(value: FormDataEntryValue | null, max = 160) { const text=String(value??'').trim(); if(!text)return null; if(text.length>max)throw new Error('A value is too long.'); return text; }
-function refreshRegistrar() { for (const path of ['/registrar','/registrar/applications','/registrar/students','/admin','/admin/applications','/admin/students','/admin/audit']) revalidatePath(path); }
+function refreshRegistrar() { for (const path of ['/registrar','/registrar/applications','/registrar/students','/registrar/cohorts','/hod','/admin','/admin/applications','/admin/students','/admin/courses','/admin/audit']) revalidatePath(path); }
+
+export async function createRegistrarCohort(formData: FormData) {
+  const { user, admin } = await requireActiveGovernanceRole(['registrar','admin']);
+  const name = requiredText(formData.get('name'),'Cohort name',180);
+  const departmentId = requiredText(formData.get('department_id'),'Department',64);
+  const startDate = requiredText(formData.get('start_date'),'Start date',10);
+  const endDate = optional(formData.get('end_date'),10);
+  const { error } = await (admin as any).rpc('registrar_create_cohort',{
+    cohort_name:name,
+    target_department_id:departmentId,
+    cohort_start_date:startDate,
+    cohort_end_date:endDate,
+    reviewer_id:user.id
+  });
+  if(error) throw new Error(error.message);
+  refreshRegistrar();
+}
 
 export async function approveApplication(formData: FormData) {
   const { user, admin } = await requireActiveGovernanceRole(['registrar','admin']);
