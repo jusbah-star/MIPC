@@ -72,9 +72,9 @@ test('database migration keeps diploma storage private and queues application em
 });
 
 test('notification delivery covers received, approved and declined decisions without embedding credentials', () => {
-  assert.match(mailSource, /MIPC application received/);
-  assert.match(mailSource, /MIPC application approved/);
-  assert.match(mailSource, /MIPC application decision/);
+  assert.match(mailSource, /MIPC Admissions — Application Received/);
+  assert.match(mailSource, /MIPC Admissions — Application Approved/);
+  assert.match(mailSource, /MIPC Admissions — Application Decision/);
   assert.match(mailSource, /waiting for review and confirmation/);
   assert.match(mailSource, /MIPC_SMTP_USER/);
   assert.match(mailSource, /MIPC_SMTP_PASS/);
