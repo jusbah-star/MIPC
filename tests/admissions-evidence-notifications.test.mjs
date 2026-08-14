@@ -27,7 +27,7 @@ const [
   read('src/app/(portal)/admin/applications/actions.ts'),
   read('src/app/(portal)/registrar/applications/page.tsx'),
   read('src/app/(portal)/admin/applications/page.tsx'),
-  read('supabase/migrations/0018_admissions_evidence_and_notifications.sql')
+  read('supabase/migrations/0020_admissions_evidence_and_notifications.sql')
 ]);
 
 test('application form requires secondary studies, national result and diploma', () => {
