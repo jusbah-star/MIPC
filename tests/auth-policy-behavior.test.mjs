@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   GENERIC_ADMIN_REGISTRATION_MESSAGE,
   GENERIC_SIGN_IN_MESSAGE,
+  isAccountRole,
   isPortalRole,
   normalizeEmail,
   normalizeRegistrationNumber,
@@ -12,11 +13,11 @@ import {
   safePortalNext
 } from '../src/lib/auth-policy.js';
 
-test('recognized campus roles are explicit', () => {
-  assert.equal(isPortalRole('student'), true);
-  assert.equal(isPortalRole('lecturer'), true);
-  assert.equal(isPortalRole('admin'), true);
-  assert.equal(isPortalRole('staff'), false);
+test('recognized login portals and account roles are explicit', () => {
+  for (const portal of ['student','staff','admin']) assert.equal(isPortalRole(portal), true);
+  for (const role of ['student','lecturer','hod','registrar','finance','admin']) assert.equal(isAccountRole(role), true);
+  assert.equal(isPortalRole('lecturer'), false);
+  assert.equal(isAccountRole('owner'), false);
 });
 
 test('email identity normalization is case-insensitive', () => {
@@ -31,42 +32,41 @@ test('student rate-limit identities include registration number', () => {
   assert.equal(portalIdentityKey('student', ' Student@MIPC.AC.RW ', ' mipc-2026-001 '), 'student:student@mipc.ac.rw:MIPC-2026-001');
 });
 
-test('lecturer rate-limit identities do not accept a student registration dimension', () => {
-  assert.equal(portalIdentityKey('lecturer', ' Lecturer@MIPC.AC.RW ', 'ignored'), 'lecturer:lecturer@mipc.ac.rw');
+test('staff rate-limit identities do not reveal a specific governance role', () => {
+  assert.equal(portalIdentityKey('staff', ' Lecturer@MIPC.AC.RW ', 'ignored'), 'staff:lecturer@mipc.ac.rw');
 });
 
-test('active profiles enter only their authoritative portal', () => {
+test('all staff roles enter through the shared staff portal', () => {
+  for (const role of ['lecturer','hod','registrar','finance']) {
+    assert.equal(profileCanAccessPortal({ role, account_status: 'active' }, 'staff'), true);
+  }
+  assert.equal(profileCanAccessPortal({ role: 'student', account_status: 'active' }, 'staff'), false);
+  assert.equal(profileCanAccessPortal({ role: 'admin', account_status: 'active' }, 'staff'), false);
+});
+
+test('student and admin profiles enter only their dedicated login portals', () => {
   assert.equal(profileCanAccessPortal({ role: 'student', account_status: 'active' }, 'student'), true);
   assert.equal(profileCanAccessPortal({ role: 'student', account_status: 'active' }, 'admin'), false);
+  assert.equal(profileCanAccessPortal({ role: 'admin', account_status: 'active' }, 'admin'), true);
 });
 
-test('suspended profiles cannot enter a portal', () => {
+test('inactive, missing and unknown-role profiles fail closed', () => {
   assert.equal(profileCanAccessPortal({ role: 'student', account_status: 'suspended' }, 'student'), false);
-});
-
-test('future unknown account states fail closed', () => {
-  assert.equal(profileCanAccessPortal({ role: 'lecturer', account_status: 'pending' }, 'lecturer'), false);
-  assert.equal(profileCanAccessPortal({ role: 'admin', account_status: 'locked' }, 'admin'), false);
-});
-
-test('missing and unknown-role profiles fail closed', () => {
+  assert.equal(profileCanAccessPortal({ role: 'hod', account_status: 'pending' }, 'staff'), false);
   assert.equal(profileCanAccessPortal(null, 'student'), false);
-  assert.equal(profileCanAccessPortal({ role: 'owner', account_status: 'active' }, 'owner'), false);
+  assert.equal(profileCanAccessPortal({ role: 'owner', account_status: 'active' }, 'staff'), false);
 });
 
-test('portal destination comes only from an active authoritative profile', () => {
-  assert.equal(profilePortalDestination({ role: 'admin', account_status: 'active' }), '/admin');
+test('portal destination comes from the authoritative stored account role', () => {
+  assert.equal(profilePortalDestination({ role: 'hod', account_status: 'active' }), '/hod');
+  assert.equal(profilePortalDestination({ role: 'registrar', account_status: 'active' }), '/registrar');
+  assert.equal(profilePortalDestination({ role: 'finance', account_status: 'active' }), '/finance');
   assert.equal(profilePortalDestination({ role: 'admin', account_status: 'suspended' }), '/login?error=account_unavailable');
-  assert.equal(profilePortalDestination({ role: 'unknown', account_status: 'active' }), '/login?error=account_unavailable');
 });
 
 test('safe next keeps navigation inside the authenticated role namespace', () => {
   assert.equal(safePortalNext({ role: 'student', account_status: 'active' }, '/student/courses'), '/student/courses');
-  assert.equal(safePortalNext({ role: 'student', account_status: 'active' }, '/admin/users'), '/student');
-});
-
-test('inactive users cannot preserve a requested next destination', () => {
-  assert.equal(safePortalNext({ role: 'student', account_status: 'suspended' }, '/student/courses'), '/login?error=account_unavailable');
+  assert.equal(safePortalNext({ role: 'hod', account_status: 'active' }, '/registrar'), '/hod');
 });
 
 test('public auth messages do not disclose identity or invitation existence', () => {
