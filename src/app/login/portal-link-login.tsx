@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ShieldCheckIcon } from '@/components/icons';
 import { GENERIC_SIGN_IN_MESSAGE } from '@/lib/auth-policy';
 import type { LoginPortal } from '@/lib/roles';
@@ -20,13 +21,22 @@ const copy: Record<PortalRole, { email: string; help: string }> = {
   admin: { email: 'Administrator / Principal email', help: 'Use the email registered on your active MIPC Principal or administrator account.' }
 };
 
+const linkErrors: Record<string, string> = {
+  invalid_email_link: 'That sign-in link is incomplete or invalid. Request a new secure link below.',
+  email_link_expired: 'That one-time sign-in link has expired or was already consumed. Request a fresh link below and use the newest email.',
+  auth_failed: 'MIPC could not complete that sign-in link. Request a new secure link below.',
+  account_unavailable: 'This account is not currently available for portal access.'
+};
+
 export function PortalLinkLogin() {
+  const searchParams = useSearchParams();
   const [portal, setPortal] = useState<PortalRole>('student');
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const linkError = linkErrors[searchParams.get('error') ?? ''] ?? '';
 
   function choosePortal(role: PortalRole) {
     if (busy) return;
@@ -88,6 +98,8 @@ export function PortalLinkLogin() {
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-mipc-green-50 text-mipc-green-700"><ShieldCheckIcon className="h-5 w-5" /></span>
             </div>
 
+            {linkError && !sent && <p className="mt-5 rounded-xl bg-signal-danger-bg p-3 text-sm leading-6 text-signal-danger">{linkError}</p>}
+
             <div className="mt-6 grid grid-cols-3 rounded-2xl bg-mipc-navy-950/[0.04] p-1" aria-label="Choose campus portal">
               {portals.map((item) => {
                 const active = portal === item.role;
@@ -105,7 +117,7 @@ export function PortalLinkLogin() {
               <div className="mt-7 space-y-5">
                 <div className="rounded-xl bg-mipc-green-50 p-4 text-sm leading-6 text-mipc-green-900">
                   <strong>Request received.</strong><br />
-                  {GENERIC_SIGN_IN_MESSAGE} If a message arrives at <strong>{email}</strong>, open its one-time link to continue through the <strong>{selected.label}</strong> entry.
+                  {GENERIC_SIGN_IN_MESSAGE} If a message arrives at <strong>{email}</strong>, use the newest message and follow its one-time link through the <strong>{selected.label}</strong> entry.
                 </div>
                 <button type="button" onClick={() => setSent(false)} className="mipc-button-secondary w-full">Change sign-in details</button>
                 <button type="button" onClick={() => void sendLink()} disabled={busy} className="w-full text-sm font-bold text-mipc-green-800">{busy ? 'Sending…' : 'Send another request'}</button>
