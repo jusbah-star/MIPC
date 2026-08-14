@@ -27,7 +27,7 @@ test('HOD workflows are department-scoped and service-role only',()=>{
   assert.match(governance,/Lecturer and course must belong to the same department/);
 });
 
-test('Registrar owns registration without class placement',()=>{
+test('Registrar owns registration without class placement',async()=>{
   assert.match(governance,/role in \('registrar','admin'\)/);
   assert.match(governance,/registrar_enroll_application_student/);
   assert.match(governance,/registrar_update_student_registration/);
