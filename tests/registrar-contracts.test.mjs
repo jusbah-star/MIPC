@@ -80,11 +80,24 @@ test('registrar server actions use transactional RPCs instead of multi-step tabl
 
   assert.match(studentActions, /rpc\('admin_create_student_profile'/);
   assert.match(studentActions, /rpc\('admin_update_student'/);
-  assert.match(studentActions, /deleteUser\(authData\.user\.id\)/);
+  assert.match(studentActions, /if \(createdAuthUser\)[\s\S]*deleteUser\(studentId\)/);
   assert.match(studentActions, /Failed to compensate student Auth email update/);
 
   assert.match(admissionActions, /rpc\('record_application_approval'/);
   assert.match(admissionActions, /rpc\('admin_enroll_application_student'/);
-  assert.match(admissionActions, /deleteUser\(studentId\)/);
+  assert.match(admissionActions, /if \(createdAuthUser\)[\s\S]*deleteUser\(studentId\)/);
   assert.doesNotMatch(admissionActions, /from\('applications'\)\s*\.update\(\{ status: 'approved'/);
+});
+
+test('student provisioning reuses orphaned Supabase Auth identities safely', async () => {
+  const helper = await source('src/lib/supabase/admin-users.ts');
+  const studentActions = await source('src/app/(portal)/admin/students/actions.ts');
+  const admissionActions = await source('src/app/(portal)/admin/applications/actions.ts');
+
+  assert.match(helper, /auth\.admin\.listUsers\(\{ page, perPage: PAGE_SIZE \}\)/);
+  assert.match(helper, /user\.email\?\.trim\(\)\.toLowerCase\(\) === normalizedEmail/);
+  assert.match(studentActions, /findAuthUserByEmail\(admin, email\)/);
+  assert.match(admissionActions, /findAuthUserByEmail\(admin, email\)/);
+  assert.match(studentActions, /if \(linkedProfile\) throw new Error\('This sign-in identity is already linked to another MIPC profile\.'\)/);
+  assert.match(admissionActions, /if \(linkedProfile\) throw new Error\('This sign-in identity is already linked to another MIPC profile\.'\)/);
 });
