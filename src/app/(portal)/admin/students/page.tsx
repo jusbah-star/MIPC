@@ -32,11 +32,13 @@ const REGISTRY_NOTICES: Record<RegistryNoticeKey, { title: string; body: string;
 export default async function StudentRegistryPage({
   searchParams
 }: {
-  searchParams: Promise<{ notice?: string | string[]; student?: string | string[] }>;
+  searchParams: Promise<{ notice?: string | string[]; student?: string | string[]; q?: string | string[] }>;
 }) {
   const params = await searchParams;
   const noticeKeyRaw = Array.isArray(params.notice) ? params.notice[0] : params.notice;
   const highlightedStudentId = Array.isArray(params.student) ? params.student[0] : params.student;
+  const rawQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+  const query = rawQuery?.trim().toLowerCase() ?? '';
   const notice = noticeKeyRaw && noticeKeyRaw in REGISTRY_NOTICES
     ? REGISTRY_NOTICES[noticeKeyRaw as RegistryNoticeKey]
     : null;
@@ -58,6 +60,20 @@ export default async function StudentRegistryPage({
   const cohortRows: any[] = (cohorts ?? []) as any[];
   const activeCount = rows.filter((student) => student.account_status === 'active').length;
   const assignedCount = rows.filter((student) => student.registration_number).length;
+  const filteredRows = query
+    ? rows.filter((student) => {
+        const department = departmentRows.find((item) => item.id === student.department_id);
+        const cohort = cohortRows.find((item) => item.id === student.cohort_id);
+        return [
+          student.full_name,
+          student.email,
+          student.registration_number,
+          department?.name,
+          department?.code,
+          cohort?.name
+        ].some((value) => String(value ?? '').toLowerCase().includes(query));
+      })
+    : rows;
 
   return (
     <div className="space-y-8">
@@ -109,12 +125,21 @@ export default async function StudentRegistryPage({
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-display text-2xl font-bold text-mipc-navy-950">Registered students</h2><p className="mt-1 text-sm text-ink-600">Update academic placement or portal identity directly from the registry.</p></div>
+          <div><h2 className="font-display text-2xl font-bold text-mipc-navy-950">Registered students</h2><p className="mt-1 text-sm text-ink-600">Search for a specific student, then open the record to review or update their academic identity.</p></div>
           <Link href="/admin/audit" className="mipc-button-secondary"><ShieldCheckIcon className="h-4 w-4" /> View audit trail</Link>
         </div>
 
+        <div className="mipc-panel p-5 sm:p-6">
+          <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1"><label className="mipc-label" htmlFor="principal-student-search">Find a student</label><input id="principal-student-search" name="q" className="mipc-field" defaultValue={rawQuery??''} placeholder="Name, registration number, email, department or class" autoComplete="off" /></div>
+            <button className="mipc-button-primary !bg-mipc-green-700" type="submit">Search students</button>
+            {query && <Link href="/admin/students" className="mipc-button-secondary">Clear</Link>}
+          </form>
+          {query && <p className="mt-3 text-sm text-ink-600">{filteredRows.length} match{filteredRows.length===1?'':'es'} for <span className="font-semibold text-ink-950">“{rawQuery?.trim()}”</span>.</p>}
+        </div>
+
         <div className="grid gap-4">
-          {rows.map((student) => {
+          {filteredRows.map((student) => {
             const department: any = departmentRows.find((item) => item.id === student.department_id);
             const cohort: any = cohortRows.find((item) => item.id === student.cohort_id);
             return (
@@ -150,7 +175,7 @@ export default async function StudentRegistryPage({
             );
           })}
 
-          {rows.length === 0 && <div className="rounded-2xl border border-dashed border-mipc-navy-900/15 bg-white p-10 text-center text-sm text-ink-600">No student accounts have been registered yet.</div>}
+          {filteredRows.length === 0 && <div className="rounded-2xl border border-dashed border-mipc-navy-900/15 bg-white p-10 text-center text-sm text-ink-600">{query ? 'No students match this search. Try a name, registration number, email, department or class.' : 'No student accounts have been registered yet.'}</div>}
         </div>
       </section>
     </div>
