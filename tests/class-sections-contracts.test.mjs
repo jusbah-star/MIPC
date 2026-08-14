@@ -40,7 +40,8 @@ test('HOD creates class sections and assigns students and class lessons', () => 
   assert.match(hodActions, /hod_assign_student_class_section/);
   assert.match(hodActions, /hod_assign_class_course_lecturer/);
   assert.match(hodPage, /Build classes inside a cohort/);
-  assert.match(hodPage, /Assign lecturers to lessons by class/);
+  assert.match(hodPage, /Assign lecturers to classes/);
+  assert.match(hodPage, /Assign class lecturers to specific lessons/);
 });
 
 test('Registrar owns cohort creation', () => {

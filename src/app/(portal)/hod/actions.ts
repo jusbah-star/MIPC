@@ -59,6 +59,32 @@ export async function assignStudentClassSection(formData: FormData) {
   refreshGovernance();
 }
 
+export async function assignClassLecturer(formData: FormData) {
+  const { user, admin } = await requireActiveGovernanceRole(['hod', 'admin']);
+  const classSectionId = requiredText(formData.get('class_section_id'), 'Class', 64);
+  const lecturerId = requiredText(formData.get('lecturer_id'), 'Lecturer', 64);
+  const { error } = await (admin as any).rpc('hod_assign_class_lecturer', {
+    target_class_section_id: classSectionId,
+    target_lecturer_id: lecturerId,
+    reviewer_id: user.id
+  });
+  if (error) throw new Error(error.message);
+  refreshGovernance();
+}
+
+export async function removeClassLecturer(formData: FormData) {
+  const { user, admin } = await requireActiveGovernanceRole(['hod', 'admin']);
+  const classSectionId = requiredText(formData.get('class_section_id'), 'Class', 64);
+  const lecturerId = requiredText(formData.get('lecturer_id'), 'Lecturer', 64);
+  const { error } = await (admin as any).rpc('hod_remove_class_lecturer', {
+    target_class_section_id: classSectionId,
+    target_lecturer_id: lecturerId,
+    reviewer_id: user.id
+  });
+  if (error) throw new Error(error.message);
+  refreshGovernance();
+}
+
 export async function assignClassCourseLecturer(formData: FormData) {
   const { user, admin } = await requireActiveGovernanceRole(['hod', 'admin']);
   const courseId = requiredText(formData.get('course_id'), 'Course', 64);
