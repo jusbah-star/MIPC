@@ -4,7 +4,43 @@ import { createClient } from '@/lib/supabase/server';
 import { UsersIcon, ShieldCheckIcon, PlusIcon } from '@/components/icons';
 import { createStudent, updateStudent } from './actions';
 
-export default async function StudentRegistryPage() {
+type RegistryNoticeKey = 'student-created' | 'student-exists' | 'email-in-use' | 'registration-in-use';
+
+const REGISTRY_NOTICES: Record<RegistryNoticeKey, { title: string; body: string; tone: string }> = {
+  'student-created': {
+    title: 'Student account created',
+    body: 'The student portal identity is active and ready to use.',
+    tone: 'border-mipc-green-700/20 bg-mipc-green-50 text-mipc-green-900'
+  },
+  'student-exists': {
+    title: 'Student already exists',
+    body: 'No duplicate was created. The existing student record is opened below so you can review or update it.',
+    tone: 'border-mipc-green-700/20 bg-[#f4f8f2] text-mipc-navy-950'
+  },
+  'email-in-use': {
+    title: 'Email already belongs to another portal account',
+    body: 'Use a different student email or review the existing account in the User Directory.',
+    tone: 'border-signal-danger/20 bg-signal-danger-bg text-signal-danger'
+  },
+  'registration-in-use': {
+    title: 'Registration number already assigned',
+    body: 'Choose the student who already owns that registration number or enter a different registration number.',
+    tone: 'border-signal-danger/20 bg-signal-danger-bg text-signal-danger'
+  }
+};
+
+export default async function StudentRegistryPage({
+  searchParams
+}: {
+  searchParams: Promise<{ notice?: string | string[]; student?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const noticeKeyRaw = Array.isArray(params.notice) ? params.notice[0] : params.notice;
+  const highlightedStudentId = Array.isArray(params.student) ? params.student[0] : params.student;
+  const notice = noticeKeyRaw && noticeKeyRaw in REGISTRY_NOTICES
+    ? REGISTRY_NOTICES[noticeKeyRaw as RegistryNoticeKey]
+    : null;
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -38,12 +74,19 @@ export default async function StudentRegistryPage() {
         </div>
       </header>
 
+      {notice && (
+        <div role="status" className={`rounded-2xl border px-5 py-4 shadow-sm ${notice.tone}`}>
+          <p className="font-display text-lg font-bold">{notice.title}</p>
+          <p className="mt-1 text-sm leading-6 opacity-80">{notice.body}</p>
+        </div>
+      )}
+
       <section className="overflow-hidden rounded-[1.5rem] border border-mipc-navy-900/10 bg-white shadow-academic">
         <div className="grid gap-0 lg:grid-cols-[.7fr_1.3fr]">
           <div className="bg-mipc-navy-950 p-6 text-white sm:p-8">
             <span className="grid h-12 w-12 place-items-center rounded-full bg-mipc-green-700"><PlusIcon className="h-5 w-5" /></span>
             <h2 className="mt-6 font-display text-3xl font-bold">Register a student</h2>
-            <p className="mt-3 text-sm leading-6 text-white/70">This creates the student's MIPC portal identity. Their registration number and email will be used together when requesting the one-time login code.</p>
+            <p className="mt-3 text-sm leading-6 text-white/70">This creates the student's MIPC portal identity. Their registration number and email are used to verify the account before a secure sign-in link is sent.</p>
             <div className="mt-7 space-y-3 text-sm text-white/70">
               <p>• Registration numbers must be unique.</p>
               <p>• Cohorts must match the selected department.</p>
@@ -75,7 +118,12 @@ export default async function StudentRegistryPage() {
             const department: any = departmentRows.find((item) => item.id === student.department_id);
             const cohort: any = cohortRows.find((item) => item.id === student.cohort_id);
             return (
-              <details key={student.id} className="group overflow-hidden rounded-2xl border border-mipc-navy-900/10 bg-white shadow-sm">
+              <details
+                key={student.id}
+                id={`student-${student.id}`}
+                open={highlightedStudentId === student.id}
+                className="group overflow-hidden rounded-2xl border border-mipc-navy-900/10 bg-white shadow-sm"
+              >
                 <summary className="cursor-pointer list-none p-5 marker:content-none sm:p-6">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
