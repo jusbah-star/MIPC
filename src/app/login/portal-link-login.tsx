@@ -4,19 +4,20 @@ import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { ShieldCheckIcon } from '@/components/icons';
 import { GENERIC_SIGN_IN_MESSAGE } from '@/lib/auth-policy';
+import type { LoginPortal } from '@/lib/roles';
 
-type PortalRole = 'student' | 'lecturer' | 'admin';
+type PortalRole = LoginPortal;
 
 const portals: Array<{ role: PortalRole; label: string; short: string }> = [
   { role: 'student', label: 'Student', short: 'Student' },
-  { role: 'lecturer', label: 'Staff / Lecturer', short: 'Staff' },
+  { role: 'staff', label: 'Staff', short: 'Staff' },
   { role: 'admin', label: 'Administrator', short: 'Admin' }
 ];
 
 const copy: Record<PortalRole, { email: string; help: string }> = {
   student: { email: 'Registered email address', help: 'Use the email attached to your student registration number.' },
-  lecturer: { email: 'Staff email address', help: 'Use the email registered on your active MIPC staff account.' },
-  admin: { email: 'Administrator email address', help: 'Use the email registered on your active MIPC administrator account.' }
+  staff: { email: 'Staff email address', help: 'Lecturers, HODs, Registrar and Finance staff use the email registered on their active MIPC account.' },
+  admin: { email: 'Administrator / Principal email', help: 'Use the email registered on your active MIPC Principal or administrator account.' }
 };
 
 export function PortalLinkLogin() {
@@ -74,7 +75,7 @@ export function PortalLinkLogin() {
         <div className="relative z-10 max-w-xl pb-8">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-mipc-green-300">Secure campus access</p>
           <h1 className="mt-5 font-display text-5xl font-bold leading-[1.03] xl:text-6xl">The right portal,<br />one secure link away.</h1>
-          <p className="mt-6 max-w-lg text-lg leading-8 text-white/72">Students verify their registration number and email. Staff and administrators use their approved MIPC email. The stored role and active account status are checked on the server before access is allowed.</p>
+          <p className="mt-6 max-w-lg text-lg leading-8 text-white/72">Students verify their registration number and email. Lecturers, HODs, Registrar and Finance staff use the shared Staff entry. The stored role and active account status determine the workspace after sign-in.</p>
         </div>
         <p className="relative z-10 text-xs text-white/45">Muhabura Integrated Polytechnic College · Musanze, Rwanda</p>
       </section>
@@ -104,7 +105,7 @@ export function PortalLinkLogin() {
               <div className="mt-7 space-y-5">
                 <div className="rounded-xl bg-mipc-green-50 p-4 text-sm leading-6 text-mipc-green-900">
                   <strong>Request received.</strong><br />
-                  {GENERIC_SIGN_IN_MESSAGE} If a message arrives at <strong>{email}</strong>, open its one-time link to continue to the <strong>{selected.label}</strong> portal.
+                  {GENERIC_SIGN_IN_MESSAGE} If a message arrives at <strong>{email}</strong>, open its one-time link to continue through the <strong>{selected.label}</strong> entry.
                 </div>
                 <button type="button" onClick={() => setSent(false)} className="mipc-button-secondary w-full">Change sign-in details</button>
                 <button type="button" onClick={() => void sendLink()} disabled={busy} className="w-full text-sm font-bold text-mipc-green-800">{busy ? 'Sending…' : 'Send another request'}</button>
