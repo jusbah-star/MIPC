@@ -52,7 +52,7 @@ const config: Config = {
       fontFamily: {
         display: ['var(--font-serif)', 'Georgia', 'serif'],
         body: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'monospace']
+        mono: ['var(--font-sans)', 'system-ui', 'sans-serif']
       },
       boxShadow: {
         academic: '0 12px 35px -20px rgba(10, 33, 22, 0.32), 0 2px 8px rgba(10, 33, 22, 0.06)',
