@@ -34,6 +34,7 @@ const NAV_ITEMS: Record<AccountRole, NavItem[]> = {
   registrar: [
     { href: '/registrar', label: 'Registrar Overview', icon: AwardIcon },
     { href: '/registrar/applications', label: 'Admissions & Registration', icon: AwardIcon, badge: 'Review' },
+    { href: '/registrar/cohorts', label: 'Cohorts & Intakes', icon: BookOpenIcon },
     { href: '/registrar/students', label: 'Student Register', icon: UsersIcon }
   ],
   finance: [
