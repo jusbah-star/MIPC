@@ -3,17 +3,23 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migrationPath = new URL('../supabase/migrations/0021_class_sections_and_teaching_assignments.sql', import.meta.url);
+const rosterMigrationPath = new URL('../supabase/migrations/0022_class_lecturer_roster_scope.sql', import.meta.url);
 const hodPagePath = new URL('../src/app/(portal)/hod/page.tsx', import.meta.url);
 const hodActionsPath = new URL('../src/app/(portal)/hod/actions.ts', import.meta.url);
 const registrarCohortsPath = new URL('../src/app/(portal)/registrar/cohorts/page.tsx', import.meta.url);
 const registrarActionsPath = new URL('../src/app/(portal)/registrar/actions.ts', import.meta.url);
+const lecturerPagePath = new URL('../src/app/(portal)/lecturer/page.tsx', import.meta.url);
+const lecturerCoursesPath = new URL('../src/app/(portal)/lecturer/courses/page.tsx', import.meta.url);
 
-const [migration, hodPage, hodActions, registrarCohorts, registrarActions] = await Promise.all([
+const [migration, rosterMigration, hodPage, hodActions, registrarCohorts, registrarActions, lecturerPage, lecturerCourses] = await Promise.all([
   readFile(migrationPath, 'utf8'),
+  readFile(rosterMigrationPath, 'utf8'),
   readFile(hodPagePath, 'utf8'),
   readFile(hodActionsPath, 'utf8'),
   readFile(registrarCohortsPath, 'utf8'),
-  readFile(registrarActionsPath, 'utf8')
+  readFile(registrarActionsPath, 'utf8'),
+  readFile(lecturerPagePath, 'utf8'),
+  readFile(lecturerCoursesPath, 'utf8')
 ]);
 
 test('cohort and class are distinct database concepts', () => {
@@ -46,4 +52,18 @@ test('Registrar owns cohort creation', () => {
 test('class teaching assignments remain service-role write operations', () => {
   assert.match(migration, /revoke all on function public\.hod_assign_student_class_section\(uuid,uuid,uuid\) from public, anon, authenticated/i);
   assert.match(migration, /grant execute on function public\.hod_assign_class_course_lecturer\(uuid,uuid,uuid,uuid\) to service_role/i);
+});
+
+test('class lecturer roster access is student-and-class scoped', () => {
+  assert.match(rosterMigration, /teaches_student_in_class\(target_course_id uuid, target_student_id uuid\)/i);
+  assert.match(rosterMigration, /student\.class_section_id = cca\.class_section_id/i);
+  assert.match(rosterMigration, /private\.teaches_course\(course_id\)\s+or private\.teaches_student_in_class\(course_id, student_id\)/i);
+});
+
+test('lecturer portal includes HOD class assignments without elevating cohort publishing', () => {
+  assert.match(lecturerPage, /course_class_assignments/);
+  assert.match(lecturerCourses, /course_class_assignments/);
+  assert.match(lecturerCourses, /class-only teaching assignment does not grant permission to publish material to the whole intake/i);
+  assert.match(lecturerCourses, /convenedCourses\.map/);
+  assert.match(lecturerCourses, /Visible roster/);
 });
