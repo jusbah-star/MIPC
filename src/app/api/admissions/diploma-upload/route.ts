@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { createAdminClient, isSupabaseConfigured } from '@/lib/supabase/server';
+import { createAdminClient, isDemoModeEnabled, isSupabaseConfigured } from '@/lib/supabase/server';
 import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 import { jsonBodySize, requiredText, ValidationError } from '@/lib/validation';
 
@@ -14,10 +14,6 @@ const MIME_TO_EXTENSION: Record<string, string> = {
 
 export async function POST(request: Request) {
   try {
-    if (!isSupabaseConfigured()) {
-      return NextResponse.json({ error: 'Diploma upload is temporarily unavailable.' }, { status: 503 });
-    }
-
     jsonBodySize(request, 4_000);
     await enforceRateLimit(`admission-diploma:${clientAddress(request)}`, 10, 60 * 60 * 1000);
     const body = await request.json();
@@ -34,6 +30,12 @@ export async function POST(request: Request) {
 
     const applicationId = randomUUID();
     const path = `${applicationId}/secondary-diploma.${MIME_TO_EXTENSION[fileType]}`;
+
+    if (!isSupabaseConfigured()) {
+      if (!isDemoModeEnabled()) return NextResponse.json({ error: 'Diploma upload is temporarily unavailable.' }, { status: 503 });
+      return NextResponse.json({ applicationId, path, bucket: BUCKET, demo: true }, { status: 201 });
+    }
+
     const admin = createAdminClient();
     const { data, error } = await admin.storage.from(BUCKET).createSignedUploadUrl(path);
     if (error || !data?.token) {
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'We could not prepare the diploma upload. Please try again.' }, { status: 503 });
     }
 
-    return NextResponse.json({ applicationId, path, token: data.token, bucket: BUCKET }, { status: 201 });
+    return NextResponse.json({ applicationId, path, token: data.token, bucket: BUCKET, demo: false }, { status: 201 });
   } catch (error) {
     if (error instanceof ValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
     if (error instanceof Error && error.message === 'RATE_LIMITED') {
