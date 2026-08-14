@@ -48,7 +48,7 @@ function waitForReply(socket: tls.TLSSocket): Promise<string> {
     function onData(chunk: Buffer) {
       buffer += chunk.toString('utf8');
       const completeLines = buffer.split(/\r?\n/).filter(Boolean);
-      const finalLine = completeLines.findLast((line) => /^\d{3} /.test(line));
+      const finalLine = [...completeLines].reverse().find((line) => /^\d{3} /.test(line));
       if (finalLine) finish(undefined, buffer);
     }
 
@@ -84,13 +84,14 @@ function cleanHeader(value: string) {
 async function sendSmtpMail(config: SmtpConfig, to: string, subject: string, text: string) {
   const socket = tls.connect({ host: config.host, port: config.port, servername: config.host, rejectUnauthorized: true });
   socket.setTimeout(20_000, () => socket.destroy(new Error('SMTP connection timed out.')));
+  const greetingPromise = waitForReply(socket);
 
   await new Promise<void>((resolve, reject) => {
     socket.once('secureConnect', resolve);
     socket.once('error', reject);
   });
 
-  const greeting = await waitForReply(socket);
+  const greeting = await greetingPromise;
   if (responseCode(greeting) !== 220) {
     socket.destroy();
     throw new Error('SMTP server did not accept the connection.');
