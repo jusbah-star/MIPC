@@ -104,7 +104,7 @@ export default async function LecturerCoursesPage() {
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="mipc-eyebrow">Teaching workspace</p><h1 className="mipc-page-title">Courses, classes and rosters</h1><p className="mt-2 max-w-2xl text-sm text-ink-700">Course convenors can publish to the whole intake. Class-specific lecturers can upload books, questionnaires, assignments and other lesson resources only to the class sections assigned to them by the HOD.</p></div>
+        <div><p className="mipc-eyebrow">Teaching workspace</p><h1 className="mipc-page-title">Courses, classes and rosters</h1><p className="mt-2 max-w-2xl text-sm text-ink-700">Course convenors can publish to the whole intake. A class-only teaching assignment does not grant permission to publish material to the whole intake; it allows books, questionnaires, assignments and other lesson resources to be published only to the class assigned by the HOD.</p></div>
         {convenedCourses.length > 0 && <Link href="/lecturer/tests/new" className="mipc-button-primary"><PlusIcon className="h-4 w-4" /> New assessment</Link>}
       </header>
 
