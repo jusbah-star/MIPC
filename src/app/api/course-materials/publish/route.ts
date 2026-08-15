@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import {
   authorizeCourseMaterialTarget,
+  authorizeLessonMaterialTarget,
   COURSE_MATERIAL_BUCKET,
   COURSE_MATERIAL_CATEGORIES,
   CourseMaterialAccessError,
@@ -28,8 +29,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const courseId = uuid(body.courseId, 'Course');
-    const classSectionId = body.classSectionId ? uuid(body.classSectionId, 'Class section') : null;
+    const lessonId = body.lessonId ? uuid(body.lessonId, 'Lesson') : null;
     const title = requiredText(body.title, 'Material title', 180, 3);
     const description = optionalText(body.description, 'Description', 3000);
     const category = requiredText(body.category, 'Material category', 30);
@@ -49,7 +49,20 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Sign in to publish lesson materials.' }, { status: 401 });
 
-    const authorization = await authorizeCourseMaterialTarget(user.id, courseId, classSectionId);
+    let courseId: string;
+    let classSectionId: string | null;
+    let authorization: Awaited<ReturnType<typeof authorizeCourseMaterialTarget>>;
+
+    if (lessonId) {
+      const lessonAuthorization = await authorizeLessonMaterialTarget(user.id, lessonId);
+      courseId = lessonAuthorization.lesson.course_id;
+      classSectionId = lessonAuthorization.lesson.class_section_id ?? null;
+      authorization = lessonAuthorization;
+    } else {
+      courseId = uuid(body.courseId, 'Course');
+      classSectionId = body.classSectionId ? uuid(body.classSectionId, 'Class section') : null;
+      authorization = await authorizeCourseMaterialTarget(user.id, courseId, classSectionId);
+    }
     cleanupAdmin = authorization.admin;
 
     const storagePath = optionalText(body.storagePath, 'Storage path', 1000);
@@ -82,8 +95,9 @@ export async function POST(request: Request) {
       throw new ValidationError('Attach a file, add an HTTPS resource, or enter lesson instructions.');
     }
 
-    const { data, error } = await (authorization.admin as any).rpc('publish_course_material_service', {
+    const { data, error } = await (authorization.admin as any).rpc('publish_course_material_service_v2', {
       publisher_id: user.id,
+      target_lesson_id: lessonId,
       target_course_id: courseId,
       target_class_section_id: classSectionId,
       material_title: title,
@@ -101,10 +115,11 @@ export async function POST(request: Request) {
 
     if (error) {
       if (uploadedPath && cleanupAdmin) await cleanupAdmin.storage.from(COURSE_MATERIAL_BUCKET).remove([uploadedPath]);
-      console.error('Course material publish failed', { message: error.message, userId: user.id, courseId, classSectionId });
+      console.error('Course material publish failed', { message: error.message, userId: user.id, lessonId, courseId, classSectionId });
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    revalidatePath('/lecturer/lessons');
     revalidatePath('/lecturer/courses');
     revalidatePath('/hod');
     revalidatePath('/student/courses');
