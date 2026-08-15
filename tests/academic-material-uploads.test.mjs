@@ -8,19 +8,21 @@ const cleanupMigrationPath = new URL('../supabase/migrations/0026_remove_authent
 const performanceMigrationPath = new URL('../supabase/migrations/0027_academic_material_policy_performance.sql', import.meta.url);
 const uploaderPath = new URL('../src/components/academic-material-uploader.tsx', import.meta.url);
 const lecturerPath = new URL('../src/app/(portal)/lecturer/courses/page.tsx', import.meta.url);
+const lessonsPath = new URL('../src/app/(portal)/lecturer/lessons/page.tsx', import.meta.url);
 const hodPath = new URL('../src/app/(portal)/hod/page.tsx', import.meta.url);
 const publishPath = new URL('../src/app/api/course-materials/publish/route.ts', import.meta.url);
 const ticketPath = new URL('../src/app/api/course-materials/upload-ticket/route.ts', import.meta.url);
 const downloadPath = new URL('../src/app/api/course-materials/[materialId]/route.ts', import.meta.url);
 const studentPath = new URL('../src/app/(portal)/student/courses/[courseId]/page.tsx', import.meta.url);
 
-const [migration, hardeningMigration, cleanupMigration, performanceMigration, uploader, lecturer, hod, publishRoute, ticketRoute, downloadRoute, student] = await Promise.all([
+const [migration, hardeningMigration, cleanupMigration, performanceMigration, uploader, lecturer, lessons, hod, publishRoute, ticketRoute, downloadRoute, student] = await Promise.all([
   readFile(migrationPath, 'utf8'),
   readFile(hardeningMigrationPath, 'utf8'),
   readFile(cleanupMigrationPath, 'utf8'),
   readFile(performanceMigrationPath, 'utf8'),
   readFile(uploaderPath, 'utf8'),
   readFile(lecturerPath, 'utf8'),
+  readFile(lessonsPath, 'utf8'),
   readFile(hodPath, 'utf8'),
   readFile(publishPath, 'utf8'),
   readFile(ticketPath, 'utf8'),
@@ -59,7 +61,8 @@ test('lecturer and HOD publication authorization is class aware', () => {
   assert.match(migration, /can_manage_course_material/i);
   assert.match(migration, /course_class_assignments cca/i);
   assert.match(migration, /actor\.role = 'hod'/i);
-  assert.match(lecturer, /AcademicMaterialUploader/);
+  assert.match(lessons, /AcademicMaterialUploader/);
+  assert.match(lecturer, /Open Lessons & Materials/);
   assert.match(hod, /HOD lesson materials & uploads/);
 });
 
@@ -72,7 +75,7 @@ test('large files bypass the server action body limit through signed uploads', (
 
 test('publishing verifies the uploaded object and uses a service-only privileged RPC', () => {
   assert.match(publishRoute, /\.list\(folder, \{ search: objectName/);
-  assert.match(publishRoute, /publish_course_material_service/);
+  assert.match(publishRoute, /publish_course_material_service_v2/);
   assert.match(publishRoute, /publisher_id: user\.id/);
   assert.match(publishRoute, /authorization\.admin as any/);
   assert.match(hardeningMigration, /publish_course_material_service/);
