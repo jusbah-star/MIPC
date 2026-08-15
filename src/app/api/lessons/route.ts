@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error?.message ?? 'The lesson could not be created.' }, { status: 400 });
     }
 
-    await authorization.admin.from('audit_log').insert({
+    await (authorization.admin as any).from('audit_log').insert({
       actor_id: user.id,
       action: 'lesson.create',
       target_table: 'lessons',
