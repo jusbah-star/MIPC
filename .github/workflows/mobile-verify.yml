@@ -1,0 +1,38 @@
+name: Mobile Verify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'src/app/api/auth/mobile-otp/**'
+      - 'src/lib/portal-auth-mail.ts'
+      - 'tests/mobile-app-contracts.test.mjs'
+      - '.github/workflows/mobile-verify.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'src/app/api/auth/mobile-otp/**'
+      - 'src/lib/portal-auth-mail.ts'
+      - 'tests/mobile-app-contracts.test.mjs'
+      - '.github/workflows/mobile-verify.yml'
+
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14'
+      - name: Install mobile dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify iOS and Android bundles
+        run: npm run verify
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: public-ci-placeholder
+          EXPO_PUBLIC_MIPC_API_URL: https://mipc-rosy.vercel.app

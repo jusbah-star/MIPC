@@ -7,3 +7,6 @@ supabase/.temp
 *.tsbuildinfo
 scratch/
 image-chunks/
+mobile/.env
+mobile/.expo/
+mobile/dist-*/

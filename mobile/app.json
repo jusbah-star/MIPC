@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "MIPC Digital Campus",
+    "slug": "mipc-digital-campus",
+    "scheme": "mipc",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "rw.ac.mipc.campus"
+    },
+    "android": {
+      "package": "rw.ac.mipc.campus"
+    },
+    "experiments": {
+      "reactCompiler": true
+    }
+  }
+}
