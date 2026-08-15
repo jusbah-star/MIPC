@@ -20,6 +20,7 @@ const NAV_ITEMS: Record<AccountRole, NavItem[]> = {
   lecturer: [
     { href: '/lecturer', label: 'Faculty Overview', icon: BarChartIcon },
     { href: '/lecturer/courses', label: 'My Courses & Rosters', icon: BookOpenIcon },
+    { href: '/lecturer/lessons', label: 'Lessons & Materials', icon: FileTextIcon },
     { href: '/lecturer/tests/new', label: 'Assessment Builder', icon: PlusIcon },
     { href: '/lecturer/grading', label: 'Grading Center', icon: CheckCircleIcon, badge: 'Queue' },
     { href: '/lecturer/announcements', label: 'Post Bulletin', icon: MegaphoneIcon }
@@ -28,6 +29,7 @@ const NAV_ITEMS: Record<AccountRole, NavItem[]> = {
     { href: '/hod', label: 'Department Governance', icon: ShieldCheckIcon },
     { href: '/lecturer', label: 'Teaching Overview', icon: BarChartIcon },
     { href: '/lecturer/courses', label: 'My Courses & Rosters', icon: BookOpenIcon },
+    { href: '/lecturer/lessons', label: 'Lessons & Materials', icon: FileTextIcon },
     { href: '/lecturer/tests/new', label: 'Assessment Builder', icon: PlusIcon },
     { href: '/lecturer/grading', label: 'Grading Center', icon: CheckCircleIcon }
   ],
