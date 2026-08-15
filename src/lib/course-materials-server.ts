@@ -78,7 +78,7 @@ export async function authorizeCourseMaterialTarget(
     throw new CourseMaterialAccessError('Active class section not found.', 404);
   }
   if (section.department_id !== course.department_id || section.cohort_id !== course.cohort_id) {
-    throw new CourseMaterialAccessError('The class and lesson do not belong to the same intake.', 400);
+    throw new CourseMaterialAccessError('The class and course do not belong to the same intake.', 400);
   }
 
   const isAdmin = profile.role === 'admin';
@@ -98,10 +98,31 @@ export async function authorizeCourseMaterialTarget(
   }
 
   if (!isAdmin && !isDepartmentHod && !isConvenor && !isAssignedClassLecturer) {
-    throw new CourseMaterialAccessError('You are not assigned to this lesson and class.', 403);
+    throw new CourseMaterialAccessError('You are not assigned to this course and class.', 403);
   }
 
   return { admin, profile, course, section };
+}
+
+export async function authorizeLessonMaterialTarget(userId: string, lessonId: string) {
+  const admin = createAdminClient();
+  const { data: lesson, error } = await (admin as any)
+    .from('lessons')
+    .select('id,course_id,class_section_id,title,published')
+    .eq('id', lessonId)
+    .single();
+
+  if (error || !lesson) {
+    throw new CourseMaterialAccessError('Lesson not found.', 404);
+  }
+
+  const authorization = await authorizeCourseMaterialTarget(
+    userId,
+    lesson.course_id,
+    lesson.class_section_id ?? null
+  );
+
+  return { ...authorization, lesson };
 }
 
 export function validateAcademicFile(fileName: unknown, fileType: unknown, fileSize: unknown) {
