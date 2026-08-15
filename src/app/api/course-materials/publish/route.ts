@@ -82,7 +82,8 @@ export async function POST(request: Request) {
       throw new ValidationError('Attach a file, add an HTTPS resource, or enter lesson instructions.');
     }
 
-    const { data, error } = await (supabase as any).rpc('publish_course_material_v2', {
+    const { data, error } = await (authorization.admin as any).rpc('publish_course_material_service', {
+      publisher_id: user.id,
       target_course_id: courseId,
       target_class_section_id: classSectionId,
       material_title: title,
