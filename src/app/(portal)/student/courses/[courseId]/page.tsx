@@ -7,9 +7,7 @@ import {
   ClockIcon,
   FileTextIcon,
   ChevronRightIcon,
-  CheckCircleIcon,
-  MegaphoneIcon,
-  UsersIcon
+  MegaphoneIcon
 } from '@/components/icons';
 
 export default async function StudentCourseRoomPage({
@@ -50,7 +48,6 @@ export default async function StudentCourseRoomPage({
 
   return (
     <div className="space-y-8">
-      {/* Course Room Header */}
       <div className="bg-white rounded-2xl border border-ink-900/10 p-6 sm:p-8 shadow-academic">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
@@ -88,16 +85,14 @@ export default async function StudentCourseRoomPage({
         </div>
       </div>
 
-      {/* Course Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Column: Tests & Coursework */}
         <div className="lg:col-span-2 space-y-6">
           <section className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs" aria-labelledby="course-materials-title">
-            <div className="flex items-center justify-between gap-3 mb-4"><div className="flex items-center gap-2"><BookOpenIcon className="w-5 h-5 text-brass-600" /><h2 id="course-materials-title" className="font-display text-lg font-bold text-ink-950">Course materials</h2></div><span className="text-xs font-mono text-ink-500">{materials.length} published</span></div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{materials.map((material) => <article key={material.id} className="rounded-xl border border-parchment-300 bg-parchment-50/50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-mipc-green-700">{material.material_type}</p><h3 className="mt-1 font-display text-base font-bold text-ink-950">{material.title}</h3>{material.description && <p className="mt-1 text-xs leading-5 text-ink-600">{material.description}</p>}{material.content && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink-700">{material.content}</p>}{material.resource_url && <a href={material.resource_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center text-sm font-bold text-mipc-green-700">Open secure resource</a>}</article>)}{materials.length === 0 && <p className="text-sm text-ink-600 sm:col-span-2">No materials have been published for this course.</p>}</div>
+            <div className="flex items-center justify-between gap-3 mb-4"><div className="flex items-center gap-2"><BookOpenIcon className="w-5 h-5 text-brass-600" /><h2 id="course-materials-title" className="font-display text-lg font-bold text-ink-950">Lesson materials</h2></div><span className="text-xs font-mono text-ink-500">{materials.length} published</span></div>
+            <p className="mb-4 text-xs leading-5 text-ink-500">This list includes course-wide resources and any files published specifically to your class.</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{materials.map((material) => <article key={material.id} className="rounded-xl border border-parchment-300 bg-parchment-50/50 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-mipc-green-700">{String(material.material_category ?? material.material_type ?? 'material').replaceAll('_',' ')}</p><h3 className="mt-1 font-display text-base font-bold text-ink-950">{material.title}</h3>{material.description && <p className="mt-1 text-xs leading-5 text-ink-600">{material.description}</p>}{material.file_name && <p className="mt-2 text-xs font-semibold text-ink-500">Attached: {material.file_name}{material.file_size ? ` · ${(Number(material.file_size) / 1024 / 1024).toFixed(2)} MB` : ''}</p>}{material.content && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink-700">{material.content}</p>}<div className="mt-3 flex flex-wrap gap-4">{material.storage_path && <a href={`/api/course-materials/${material.id}`} className="inline-flex min-h-11 items-center text-sm font-bold text-mipc-green-700">Download file</a>}{material.resource_url && <a href={material.resource_url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center text-sm font-bold text-mipc-navy-700">Open resource</a>}</div></article>)}{materials.length === 0 && <p className="text-sm text-ink-600 sm:col-span-2">No materials have been published for this course or your class.</p>}</div>
           </section>
 
-          {/* Timed Examinations */}
           <div className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -146,7 +141,6 @@ export default async function StudentCourseRoomPage({
             </div>
           </div>
 
-          {/* Assignments & Problem Sets */}
           <div className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -192,7 +186,6 @@ export default async function StudentCourseRoomPage({
           </div>
         </div>
 
-        {/* Sidebar: Module Notices & Resources */}
         <div className="space-y-6">
           <div className="bg-white rounded-xl border border-ink-900/10 p-6 shadow-xs">
             <div className="flex items-center gap-2 mb-4">
