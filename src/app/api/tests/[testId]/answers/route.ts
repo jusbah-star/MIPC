@@ -7,7 +7,6 @@ import { clientAddress, enforceRateLimit } from '@/lib/rate-limit';
 export async function PUT(request: Request, { params }: { params: Promise<{ testId: string }> }) {
   try {
     const { testId } = await params;
-    await enforceRateLimit(`exam-save:${clientAddress(request)}`, 180, 60_000);
     jsonBodySize(request, 2_000_000);
     const body = await request.json();
     const answers = Array.isArray(body.answers) ? body.answers : [];
@@ -17,6 +16,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ test
       const supabase = await createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+
+      // Campus Wi-Fi can put hundreds of students behind one public IP. Limit
+      // authenticated exam traffic per student so a shared NAT never blocks a room.
+      await enforceRateLimit(`exam-save:user:${user.id}`, 90, 60_000);
+
       const { data, error } = await (supabase as any).rpc('save_test_answers', {
         target_test_id: testId,
         submitted_answers: answers
@@ -29,6 +33,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ test
       return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
     }
 
+    await enforceRateLimit(`exam-save:demo:${clientAddress(request)}`, 180, 60_000);
     const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((profile) => profile.role === 'student');
     const attempt = dataStore.test_attempts.find(
       (item) => item.test_id === testId && item.student_id === currentStudent?.id && item.status === 'in_progress'
