@@ -44,15 +44,16 @@ export async function POST(request: Request) {
     const path = buildCourseMaterialStoragePath(user.id, courseId, file.extension);
     const { data, error } = await admin.storage.from(COURSE_MATERIAL_BUCKET).createSignedUploadUrl(path);
 
-    if (error || !data?.token) {
+    if (error || !data?.token || !data?.signedUrl) {
       console.error('Course material upload ticket failed', { message: error?.message, userId: user.id, lessonId, courseId, classSectionId });
       return NextResponse.json({ error: 'We could not prepare the academic file upload.' }, { status: 503 });
     }
 
     return NextResponse.json({
       bucket: COURSE_MATERIAL_BUCKET,
-      path,
+      path: data.path,
       token: data.token,
+      signedUrl: data.signedUrl,
       lessonId,
       courseId,
       classSectionId,
