@@ -3,7 +3,6 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { FileTextIcon } from '@/components/icons';
-import { createClient } from '@/lib/supabase/client';
 
 export type AcademicMaterialTarget = {
   lessonId?: string | null;
@@ -12,6 +11,17 @@ export type AcademicMaterialTarget = {
   courseLabel: string;
   classSectionId?: string | null;
   scopeLabel: string;
+};
+
+type SignedUploadTicket = {
+  bucket?: string;
+  path?: string;
+  token?: string;
+  signedUrl?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
+  error?: string;
 };
 
 const categories = [
@@ -40,6 +50,61 @@ const allowedTypes = [
 ];
 
 const maxFileSize = 25 * 1024 * 1024;
+
+function uploadFailureMessage(raw: string, status: number) {
+  let detail = raw.trim();
+  if (detail) {
+    try {
+      const parsed = JSON.parse(detail);
+      detail = String(parsed?.message ?? parsed?.error ?? parsed?.error_description ?? detail);
+    } catch {
+      // Keep the plain-text Storage response when it is not JSON.
+    }
+  }
+  detail = detail.replace(/\s+/g, ' ').slice(0, 240);
+  return detail
+    ? `The file could not be uploaded: ${detail}`
+    : `The file could not be uploaded by secure storage (HTTP ${status}).`;
+}
+
+async function uploadToSignedUrlDirectly(ticket: SignedUploadTicket, file: File) {
+  if (!ticket.signedUrl) {
+    throw new Error('The secure upload ticket is incomplete. Refresh the page and try again.');
+  }
+
+  let uploadUrl: URL;
+  try {
+    uploadUrl = new URL(ticket.signedUrl);
+  } catch {
+    throw new Error('The secure upload address is invalid. Refresh the page and try again.');
+  }
+  if (uploadUrl.protocol !== 'https:') {
+    throw new Error('The secure upload address is not HTTPS.');
+  }
+
+  const form = new FormData();
+  form.append('cacheControl', '3600');
+  form.append('', file);
+
+  let response: Response;
+  try {
+    response = await fetch(uploadUrl.toString(), {
+      method: 'PUT',
+      body: form,
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      headers: { 'x-upsert': 'false' }
+    });
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? ` (${error.message})` : '';
+    throw new Error(`The browser could not reach secure file storage${detail}. Check your connection and try again.`);
+  }
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => '');
+    throw new Error(uploadFailureMessage(raw, response.status));
+  }
+}
 
 export function AcademicMaterialUploader({
   targets,
@@ -99,7 +164,7 @@ export function AcademicMaterialUploader({
     }
 
     setStatus({ kind: 'saving', message: file ? 'Preparing secure upload…' : 'Publishing material…' });
-    let ticket: any = null;
+    let ticket: SignedUploadTicket | null = null;
 
     try {
       if (file) {
@@ -116,14 +181,10 @@ export function AcademicMaterialUploader({
           })
         });
         ticket = await ticketResponse.json().catch(() => ({}));
-        if (!ticketResponse.ok) throw new Error(ticket.error || 'We could not prepare the file upload.');
+        if (!ticketResponse.ok) throw new Error(ticket?.error || 'We could not prepare the file upload.');
 
         setStatus({ kind: 'saving', message: 'Uploading file securely…' });
-        const supabase = createClient();
-        const { error: uploadError } = await supabase.storage
-          .from(ticket.bucket)
-          .uploadToSignedUrl(ticket.path, ticket.token, file, { contentType: file.type });
-        if (uploadError) throw new Error('The file could not be uploaded. Check your connection and try again.');
+        await uploadToSignedUrlDirectly(ticket ?? {}, file);
       }
 
       setStatus({ kind: 'saving', message: 'Saving lesson material…' });
