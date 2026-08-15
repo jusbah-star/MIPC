@@ -6,6 +6,8 @@ import { FileTextIcon } from '@/components/icons';
 import { createClient } from '@/lib/supabase/client';
 
 export type AcademicMaterialTarget = {
+  lessonId?: string | null;
+  lessonLabel?: string | null;
   courseId: string;
   courseLabel: string;
   classSectionId?: string | null;
@@ -43,7 +45,7 @@ export function AcademicMaterialUploader({
   targets,
   title = 'Upload lesson material',
   description = 'Attach books, questionnaires, assignments, handouts, slides, worksheets, past papers, or other teaching resources.',
-  emptyMessage = 'No lesson or class is currently available for uploads. A course must first be created and assigned to the relevant lecturer, class, or intake.'
+  emptyMessage = 'No lesson is available for uploads. Create a lesson/topic first in Lessons & Materials.'
 }: {
   targets: AcademicMaterialTarget[];
   title?: string;
@@ -105,6 +107,7 @@ export function AcademicMaterialUploader({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            lessonId: selectedTarget.lessonId ?? null,
             courseId: selectedTarget.courseId,
             classSectionId: selectedTarget.classSectionId ?? null,
             fileName: file.name,
@@ -128,6 +131,7 @@ export function AcademicMaterialUploader({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          lessonId: selectedTarget.lessonId ?? null,
           courseId: selectedTarget.courseId,
           classSectionId: selectedTarget.classSectionId ?? null,
           title: materialTitle.trim(),
@@ -178,12 +182,12 @@ export function AcademicMaterialUploader({
         <label className="mipc-label" htmlFor="academic-material-target">Lesson / audience</label>
         <select id="academic-material-target" className="mipc-input" value={targetKey} onChange={(event) => { setTargetKey(event.target.value); setStatus({ kind: 'idle' }); }} required disabled={!hasTargets}>
           {!hasTargets && <option value="">No lessons available for upload</option>}
-          {options.map((target) => <option key={target.key} value={target.key}>{target.courseLabel} · {target.scopeLabel}</option>)}
+          {options.map((target) => <option key={target.key} value={target.key}>{target.courseLabel}{target.lessonLabel ? ` · ${target.lessonLabel}` : ''} · {target.scopeLabel}</option>)}
         </select>
       </div>
 
       <div><label className="mipc-label" htmlFor="academic-material-category">Material category</label><select id="academic-material-category" className="mipc-input" value={category} onChange={(event) => setCategory(event.target.value)} disabled={!hasTargets}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-      <div><label className="mipc-label" htmlFor="academic-material-title">Title</label><input id="academic-material-title" className="mipc-input" value={materialTitle} onChange={(event) => setMaterialTitle(event.target.value)} minLength={3} maxLength={180} required disabled={!hasTargets} placeholder="e.g. Week 4 reinforced concrete notes" /></div>
+      <div><label className="mipc-label" htmlFor="academic-material-title">Title</label><input id="academic-material-title" className="mipc-input" value={materialTitle} onChange={(event) => setMaterialTitle(event.target.value)} minLength={3} maxLength={180} required disabled={!hasTargets} placeholder="e.g. Reinforced concrete worked examples" /></div>
 
       <div className="lg:col-span-2">
         <label className="mipc-label" htmlFor="academic-material-file">Upload file</label>
