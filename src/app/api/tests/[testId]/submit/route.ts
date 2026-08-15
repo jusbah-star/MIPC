@@ -11,7 +11,6 @@ export async function POST(
 ) {
   try {
     const { testId } = await params;
-    await enforceRateLimit(`exam-submit:${clientAddress(request)}`, 15, 60_000);
     jsonBodySize(request, 2_000_000);
 
     const body = await request.json().catch(() => ({}));
@@ -25,6 +24,9 @@ export async function POST(
         response: String(response)
       }));
     }
+    if (answerEntries.length > 250) {
+      return NextResponse.json({ error: 'Too many answers.' }, { status: 400 });
+    }
 
     if (isSupabaseConfigured()) {
       try {
@@ -34,6 +36,10 @@ export async function POST(
         if (!user) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        // A whole examination room may share one campus public IP. Protect
+        // duplicate submissions per authenticated student instead of per NAT IP.
+        await enforceRateLimit(`exam-submit:user:${user.id}`, 10, 60_000);
 
         const { data, error } = await (supabase as any).rpc('submit_test_attempt', {
           target_test_id: testId,
@@ -50,7 +56,13 @@ export async function POST(
           score: result.score,
           requiresManualGrading: result.requires_manual_grading
         });
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message === 'RATE_LIMITED') {
+          return NextResponse.json({ error: 'Too many submission requests. Try again shortly.' }, { status: 429 });
+        }
+        if (error instanceof Error && error.message === 'RATE_LIMIT_UNAVAILABLE') {
+          return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
+        }
         return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
       }
     }
@@ -59,6 +71,7 @@ export async function POST(
       return NextResponse.json({ error: 'The examination service is temporarily unavailable.' }, { status: 503 });
     }
 
+    await enforceRateLimit(`exam-submit:demo:${clientAddress(request)}`, 15, 60_000);
     const currentStudent = dataStore.currentUser ?? dataStore.profiles.find((p) => p.role === 'student');
     const attempt = dataStore.test_attempts.find(
       (a) => a.test_id === testId && a.student_id === currentStudent?.id
