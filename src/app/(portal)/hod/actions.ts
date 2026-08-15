@@ -2,10 +2,10 @@
 
 import { revalidatePath } from 'next/cache';
 import { requireActiveGovernanceRole } from '@/lib/governance-server';
-import { requiredText } from '@/lib/validation';
+import { requiredText, uuid } from '@/lib/validation';
 
 function refreshGovernance() {
-  for (const path of ['/hod', '/registrar', '/registrar/students', '/registrar/cohorts', '/lecturer', '/lecturer/courses', '/student', '/student/courses', '/admin', '/admin/students', '/admin/courses', '/admin/audit']) revalidatePath(path);
+  for (const path of ['/hod', '/hod/students', '/registrar', '/registrar/students', '/registrar/cohorts', '/lecturer', '/lecturer/courses', '/student', '/student/courses', '/admin', '/admin/students', '/admin/courses', '/admin/audit']) revalidatePath(path);
 }
 
 export async function assignLecturerDepartment(formData: FormData) {
@@ -57,6 +57,33 @@ export async function assignStudentClassSection(formData: FormData) {
   });
   if (error) throw new Error(error.message);
   refreshGovernance();
+}
+
+export async function bulkAssignStudentsClassSection(
+  _previousState: { status: 'idle' | 'success' | 'error'; message?: string },
+  formData: FormData
+) {
+  try {
+    const { user, admin } = await requireActiveGovernanceRole(['hod', 'admin']);
+    const classSectionId = uuid(formData.get('class_section_id'), 'Class');
+    const studentIds = Array.from(new Set(formData.getAll('student_ids').map((value) => uuid(value, 'Student'))));
+
+    if (studentIds.length === 0) return { status: 'error' as const, message: 'Select at least one student.' };
+    if (studentIds.length > 100) return { status: 'error' as const, message: 'Select no more than 100 students at once.' };
+
+    const { data, error } = await (admin as any).rpc('hod_bulk_assign_students_class_section', {
+      target_student_ids: studentIds,
+      target_class_section_id: classSectionId,
+      reviewer_id: user.id
+    });
+    if (error) return { status: 'error' as const, message: error.message };
+
+    refreshGovernance();
+    const count = Number(data ?? studentIds.length);
+    return { status: 'success' as const, message: `${count} student${count === 1 ? '' : 's'} assigned successfully.` };
+  } catch (error) {
+    return { status: 'error' as const, message: error instanceof Error ? error.message : 'Students could not be assigned.' };
+  }
 }
 
 export async function assignClassLecturer(formData: FormData) {
