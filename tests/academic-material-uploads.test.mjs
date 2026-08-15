@@ -66,10 +66,14 @@ test('lecturer and HOD publication authorization is class aware', () => {
   assert.match(hod, /HOD lesson materials & uploads/);
 });
 
-test('large files bypass the server action body limit through signed uploads', () => {
-  assert.match(uploader, /uploadToSignedUrl/);
+test('large files use a server-issued signed URL without a second browser Supabase client', () => {
+  assert.match(uploader, /uploadToSignedUrlDirectly/);
+  assert.match(uploader, /method: 'PUT'/);
+  assert.match(uploader, /credentials: 'omit'/);
   assert.match(uploader, /\/api\/course-materials\/upload-ticket/);
+  assert.doesNotMatch(uploader, /@\/lib\/supabase\/client/);
   assert.match(ticketRoute, /createSignedUploadUrl/);
+  assert.match(ticketRoute, /signedUrl: data\.signedUrl/);
   assert.match(ticketRoute, /authorizeCourseMaterialTarget/);
 });
 
