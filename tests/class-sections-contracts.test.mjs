@@ -10,8 +10,9 @@ const registrarCohortsPath = new URL('../src/app/(portal)/registrar/cohorts/page
 const registrarActionsPath = new URL('../src/app/(portal)/registrar/actions.ts', import.meta.url);
 const lecturerPagePath = new URL('../src/app/(portal)/lecturer/page.tsx', import.meta.url);
 const lecturerCoursesPath = new URL('../src/app/(portal)/lecturer/courses/page.tsx', import.meta.url);
+const lecturerLessonsPath = new URL('../src/app/(portal)/lecturer/lessons/page.tsx', import.meta.url);
 
-const [migration, rosterMigration, hodPage, hodActions, registrarCohorts, registrarActions, lecturerPage, lecturerCourses] = await Promise.all([
+const [migration, rosterMigration, hodPage, hodActions, registrarCohorts, registrarActions, lecturerPage, lecturerCourses, lecturerLessons] = await Promise.all([
   readFile(migrationPath, 'utf8'),
   readFile(rosterMigrationPath, 'utf8'),
   readFile(hodPagePath, 'utf8'),
@@ -19,7 +20,8 @@ const [migration, rosterMigration, hodPage, hodActions, registrarCohorts, regist
   readFile(registrarCohortsPath, 'utf8'),
   readFile(registrarActionsPath, 'utf8'),
   readFile(lecturerPagePath, 'utf8'),
-  readFile(lecturerCoursesPath, 'utf8')
+  readFile(lecturerCoursesPath, 'utf8'),
+  readFile(lecturerLessonsPath, 'utf8')
 ]);
 
 test('cohort and class are distinct database concepts', () => {
@@ -64,7 +66,10 @@ test('class lecturer roster access is student-and-class scoped', () => {
 test('lecturer portal includes HOD class assignments without elevating cohort publishing', () => {
   assert.match(lecturerPage, /course_class_assignments/);
   assert.match(lecturerCourses, /course_class_assignments/);
-  assert.match(lecturerCourses, /class-only teaching assignment does not grant permission to publish material to the whole intake/i);
-  assert.match(lecturerCourses, /convenedCourses\.map/);
+  assert.match(lecturerCourses, /Open Lessons & Materials/);
+  assert.match(lecturerLessons, /course_class_assignments/);
+  assert.match(lecturerLessons, /const isConvenor = course\.lecturer_id === user\.id/);
+  assert.match(lecturerLessons, /if \(isAdmin \|\| isConvenor\)[\s\S]*scopeKey\(course\.id, null\)/);
+  assert.match(lecturerLessons, /classAssignment/);
   assert.match(lecturerCourses, /Visible roster/);
 });
