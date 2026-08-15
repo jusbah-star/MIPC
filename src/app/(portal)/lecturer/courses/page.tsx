@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BookOpenIcon, PlusIcon, UsersIcon } from '@/components/icons';
-import { AcademicMaterialUploader, type AcademicMaterialTarget } from '@/components/academic-material-uploader';
 import { dataStore } from '@/lib/data-store';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 
@@ -81,38 +80,18 @@ export default async function LecturerCoursesPage() {
   }
 
   const convenedCourses = courses.filter((course) => convenorCourseIds.has(course.id));
-  const materialTargets: AcademicMaterialTarget[] = [
-    ...convenedCourses.map((course) => ({
-      courseId: course.id,
-      courseLabel: `${course.code} — ${course.title}`,
-      classSectionId: null,
-      scopeLabel: 'Whole intake / cohort'
-    })),
-    ...classAssignments.flatMap((assignment) => {
-      const course = courses.find((item) => item.id === assignment.course_id);
-      const section = classSections.find((item) => item.id === assignment.class_section_id);
-      if (!course || !section) return [];
-      return [{
-        courseId: course.id,
-        courseLabel: `${course.code} — ${course.title}`,
-        classSectionId: section.id,
-        scopeLabel: `${section.name} · Year ${section.year_of_study}`
-      }];
-    })
-  ];
 
   return (
     <div className="space-y-8">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="mipc-eyebrow">Teaching workspace</p><h1 className="mipc-page-title">Courses, classes and rosters</h1><p className="mt-2 max-w-2xl text-sm text-ink-700">Course convenors can publish to the whole intake. A class-only teaching assignment does not grant permission to publish material to the whole intake; it allows books, questionnaires, assignments and other lesson resources to be published only to the class assigned by the HOD.</p></div>
+        <div><p className="mipc-eyebrow">Teaching workspace</p><h1 className="mipc-page-title">Courses, classes and rosters</h1><p className="mt-2 max-w-2xl text-sm text-ink-700">Review the courses and classes you teach, student rosters and published resources. Lesson planning and new material uploads now have a dedicated workspace.</p></div>
         {convenedCourses.length > 0 && <Link href="/lecturer/tests/new" className="mipc-button-primary"><PlusIcon className="h-4 w-4" /> New assessment</Link>}
       </header>
 
-      <AcademicMaterialUploader
-        targets={materialTargets}
-        title="Lesson materials & file uploads"
-        description="Upload books, lecture notes, questionnaires, assignments, worksheets, presentations, past papers and reference files. Choose the whole intake only when you are the course convenor; class teaching assignments publish only to that class."
-      />
+      <section className="mipc-panel flex flex-col gap-4 border-l-4 border-l-mipc-green-700 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-mipc-green-100 text-mipc-green-800"><BookOpenIcon className="h-5 w-5" /></span><div><h2 className="font-display text-lg font-bold text-ink-950">Add lessons and teaching materials</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-ink-600">Create a lesson/topic first, then attach books, notes, questionnaires, assignments, slides and other files to that lesson.</p></div></div>
+        <Link href="/lecturer/lessons" className="mipc-button-primary shrink-0">Open Lessons & Materials</Link>
+      </section>
 
       <div className="space-y-6">
         {courses.map((course) => {
@@ -131,7 +110,7 @@ export default async function LecturerCoursesPage() {
             </div>
           </section>;
         })}
-        {courses.length === 0 && <div className="mipc-empty">No course or class teaching assignments are assigned to this lecturer account.</div>}
+        {courses.length === 0 && <div className="mipc-empty">No course or class teaching assignments are assigned to this lecturer account. An administrator must create a course/module before lessons can be added.</div>}
       </div>
     </div>
   );
