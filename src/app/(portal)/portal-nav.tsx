@@ -27,6 +27,7 @@ const NAV_ITEMS: Record<AccountRole, NavItem[]> = {
   ],
   hod: [
     { href: '/hod', label: 'Department Governance', icon: ShieldCheckIcon },
+    { href: '/hod/students', label: 'Students & Classes', icon: UsersIcon },
     { href: '/lecturer', label: 'Teaching Overview', icon: BarChartIcon },
     { href: '/lecturer/courses', label: 'My Courses & Rosters', icon: BookOpenIcon },
     { href: '/lecturer/lessons', label: 'Lessons & Materials', icon: FileTextIcon },
