@@ -18,6 +18,17 @@ type PortalMailInput = {
   signInUrl: string;
 };
 
+type PortalOtpMailInput = {
+  to: string;
+  otp: string;
+};
+
+type TextMailInput = {
+  to: string;
+  subject: string;
+  text: string;
+};
+
 function smtpConfig(): SmtpConfig {
   const user = process.env.MIPC_SMTP_USER?.trim();
   const pass = process.env.MIPC_SMTP_PASS?.trim();
@@ -99,7 +110,7 @@ function cleanHeader(value: string) {
   return value.replace(/[\r\n]+/g, ' ').trim();
 }
 
-export async function sendPortalSignInEmail({ to, signInUrl }: PortalMailInput) {
+async function sendPortalTextEmail({ to, subject, text }: TextMailInput) {
   const config = smtpConfig();
   const socket = tls.connect({ host: config.host, port: config.port, servername: config.host, rejectUnauthorized: true });
   socket.setTimeout(20_000, () => socket.destroy(new Error('SMTP connection timed out.')));
@@ -117,8 +128,6 @@ export async function sendPortalSignInEmail({ to, signInUrl }: PortalMailInput) 
   }
 
   const messageId = `${randomUUID()}@mipc-rosy.vercel.app`;
-  const subject = 'MIPC Portal — Secure Sign-In Link';
-  const text = `Hello,\n\nA secure sign-in link was requested for your MIPC campus account.\n\nContinue to MIPC:\n${signInUrl}\n\nThis link is for one-time use. If you did not request it, you can ignore this email.\n\nMuhabura Integrated Polytechnic College (MIPC)\nMusanze, Rwanda`;
 
   try {
     await command(socket, 'EHLO mipc-rosy.vercel.app', 250);
@@ -154,4 +163,23 @@ export async function sendPortalSignInEmail({ to, signInUrl }: PortalMailInput) 
   } finally {
     socket.end();
   }
+}
+
+export async function sendPortalSignInEmail({ to, signInUrl }: PortalMailInput) {
+  return sendPortalTextEmail({
+    to,
+    subject: 'MIPC Portal — Secure Sign-In Link',
+    text: `Hello,\n\nA secure sign-in link was requested for your MIPC campus account.\n\nContinue to MIPC:\n${signInUrl}\n\nThis link is for one-time use. If you did not request it, you can ignore this email.\n\nMuhabura Integrated Polytechnic College (MIPC)\nMusanze, Rwanda`
+  });
+}
+
+export async function sendPortalOtpEmail({ to, otp }: PortalOtpMailInput) {
+  const code = String(otp).replace(/\s+/g, '').slice(0, 12);
+  if (!/^\d{6,8}$/.test(code)) throw new Error('MIPC mobile sign-in code is invalid.');
+
+  return sendPortalTextEmail({
+    to,
+    subject: 'MIPC Mobile — Your Sign-In Code',
+    text: `Hello,\n\nUse this one-time code to sign in to the MIPC iOS or Android app:\n\n${code}\n\nEnter the code only inside the official MIPC Digital Campus app. It is for one-time use and expires automatically. If you did not request it, you can ignore this email.\n\nMuhabura Integrated Polytechnic College (MIPC)\nMusanze, Rwanda`
+  });
 }
