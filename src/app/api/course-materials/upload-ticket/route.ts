@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/server';
 import {
   authorizeCourseMaterialTarget,
+  authorizeLessonMaterialTarget,
   buildCourseMaterialStoragePath,
   COURSE_MATERIAL_BUCKET,
   CourseMaterialAccessError,
@@ -17,20 +18,34 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const courseId = uuid(body.courseId, 'Course');
-    const classSectionId = body.classSectionId ? uuid(body.classSectionId, 'Class section') : null;
+    const lessonId = body.lessonId ? uuid(body.lessonId, 'Lesson') : null;
     const file = validateAcademicFile(body.fileName, body.fileType, body.fileSize);
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Sign in to upload lesson materials.' }, { status: 401 });
 
-    const { admin } = await authorizeCourseMaterialTarget(user.id, courseId, classSectionId);
+    let courseId: string;
+    let classSectionId: string | null;
+    let admin: Awaited<ReturnType<typeof authorizeCourseMaterialTarget>>['admin'];
+
+    if (lessonId) {
+      const authorization = await authorizeLessonMaterialTarget(user.id, lessonId);
+      courseId = authorization.lesson.course_id;
+      classSectionId = authorization.lesson.class_section_id ?? null;
+      admin = authorization.admin;
+    } else {
+      courseId = uuid(body.courseId, 'Course');
+      classSectionId = body.classSectionId ? uuid(body.classSectionId, 'Class section') : null;
+      const authorization = await authorizeCourseMaterialTarget(user.id, courseId, classSectionId);
+      admin = authorization.admin;
+    }
+
     const path = buildCourseMaterialStoragePath(user.id, courseId, file.extension);
     const { data, error } = await admin.storage.from(COURSE_MATERIAL_BUCKET).createSignedUploadUrl(path);
 
     if (error || !data?.token) {
-      console.error('Course material upload ticket failed', { message: error?.message, userId: user.id, courseId });
+      console.error('Course material upload ticket failed', { message: error?.message, userId: user.id, lessonId, courseId, classSectionId });
       return NextResponse.json({ error: 'We could not prepare the academic file upload.' }, { status: 503 });
     }
 
@@ -38,6 +53,9 @@ export async function POST(request: Request) {
       bucket: COURSE_MATERIAL_BUCKET,
       path,
       token: data.token,
+      lessonId,
+      courseId,
+      classSectionId,
       fileName: file.fileName,
       fileType: file.fileType,
       fileSize: file.fileSize
