@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const migrationPath = new URL('../supabase/migrations/0024_academic_material_uploads.sql', import.meta.url);
+const hardeningMigrationPath = new URL('../supabase/migrations/0025_academic_material_rpc_hardening.sql', import.meta.url);
 const uploaderPath = new URL('../src/components/academic-material-uploader.tsx', import.meta.url);
 const lecturerPath = new URL('../src/app/(portal)/lecturer/courses/page.tsx', import.meta.url);
 const hodPath = new URL('../src/app/(portal)/hod/page.tsx', import.meta.url);
@@ -11,8 +12,9 @@ const ticketPath = new URL('../src/app/api/course-materials/upload-ticket/route.
 const downloadPath = new URL('../src/app/api/course-materials/[materialId]/route.ts', import.meta.url);
 const studentPath = new URL('../src/app/(portal)/student/courses/[courseId]/page.tsx', import.meta.url);
 
-const [migration, uploader, lecturer, hod, publishRoute, ticketRoute, downloadRoute, student] = await Promise.all([
+const [migration, hardeningMigration, uploader, lecturer, hod, publishRoute, ticketRoute, downloadRoute, student] = await Promise.all([
   readFile(migrationPath, 'utf8'),
+  readFile(hardeningMigrationPath, 'utf8'),
   readFile(uploaderPath, 'utf8'),
   readFile(lecturerPath, 'utf8'),
   readFile(hodPath, 'utf8'),
@@ -61,10 +63,14 @@ test('large files bypass the server action body limit through signed uploads', (
   assert.match(ticketRoute, /authorizeCourseMaterialTarget/);
 });
 
-test('publishing verifies the uploaded object and records it through the scoped RPC', () => {
+test('publishing verifies the uploaded object and uses a service-only privileged RPC', () => {
   assert.match(publishRoute, /\.list\(folder, \{ search: objectName/);
-  assert.match(publishRoute, /publish_course_material_v2/);
-  assert.match(publishRoute, /storagePath\.startsWith\(`\$\{user\.id\}\/\$\{courseId\}\//);
+  assert.match(publishRoute, /publish_course_material_service/);
+  assert.match(publishRoute, /publisher_id: user\.id/);
+  assert.match(publishRoute, /authorization\.admin as any/);
+  assert.match(hardeningMigration, /publish_course_material_service/);
+  assert.match(hardeningMigration, /revoke all on function public\.publish_course_material_service[\s\S]*from public, anon, authenticated/i);
+  assert.match(hardeningMigration, /grant execute on function public\.publish_course_material_service[\s\S]*to service_role/i);
 });
 
 test('students download private files through an authenticated signed-download endpoint', () => {
