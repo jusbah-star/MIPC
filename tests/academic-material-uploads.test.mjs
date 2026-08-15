@@ -87,3 +87,10 @@ test('students download private files through an authenticated signed-download e
   assert.match(student, /\/api\/course-materials\/\$\{material\.id\}/);
   assert.match(student, /Download file/);
 });
+
+test('empty lesson targets never leave a silently dead upload button', () => {
+  assert.match(uploader, /if \(!selectedTarget\) \{[\s\S]*setStatus\(\{ kind: 'error', message: emptyMessage \}\)/);
+  assert.match(uploader, /Upload unavailable:/);
+  assert.match(uploader, /Why can’t I upload\?/);
+  assert.doesNotMatch(uploader, /disabled=\{options\.length === 0 \|\| status\.kind === 'saving'\}/);
+});
