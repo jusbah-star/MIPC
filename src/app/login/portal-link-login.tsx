@@ -124,7 +124,6 @@ export function PortalLinkLogin() {
               </div>
             )}
 
-            {portal === 'admin' && !sent && <p className="mt-5 text-center text-xs text-ink-500">Have an administrator invitation? <Link href="/register/admin" className="font-bold text-mipc-green-800">Complete administrator registration</Link></p>}
             {error && <p className="mt-5 rounded-xl bg-signal-danger-bg p-3 text-sm text-signal-danger">{error}</p>}
           </div>
           <p className="mt-6 text-center text-xs text-ink-500"><Link href="/" className="font-semibold hover:text-mipc-navy-950">← Return to MIPC website</Link></p>
